@@ -2,14 +2,30 @@
 pragma solidity ^0.8.13;
 
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PeerToken} from "vendor/tokens/PeerToken.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
+import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
+import {NttManager} from "vendor/NttManager/NttManager.sol";
+import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+import {INttManager} from "vendor/interfaces/INttManager.sol";
+
+interface IWormhole {
+    function chainId() external view returns (uint16);
+}
 
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens and their managers
  */
 contract NttFactory is Ownable {
+    // --- Structs ---
+    struct EnvParams {
+        address wormholeCoreBridge;
+        address wormholeRelayerAddr;
+        address specialRelayerAddr;
+    }
+
     struct DeploymentParams {
         address token;
         IManagerBase.Mode mode;
@@ -29,6 +45,7 @@ contract NttFactory is Ownable {
         address indexed token, string name, string symbol, address indexed minter, address indexed owner
     );
     event ManagerDeployed(address indexed manager, address indexed token);
+    event TranceiverDeployed(address indexed tranceiver, address indexed token);
     event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
 
     // --- Errors ---
@@ -53,18 +70,19 @@ contract NttFactory is Ownable {
      * @param _tokenOwner Token owner address
      * @return token Address of deployed token
      * @return manager Address of deployed manager
+     * @return tranceiver Address of deployed tranceiver
      */
-    function deployNtt(string memory _name, string memory _symbol, address _minter, address _tokenOwner)
-        external
-        onlyOwner
-        returns (address token, address manager)
-    {
+    function deployNtt(
+        string memory _name,
+        string memory _symbol,
+        address _minter,
+        address _tokenOwner,
+        EnvParams memory envParams
+    ) external onlyOwner returns (address token, address manager, address tranceiver) {
         if (_minter == address(0) || _tokenOwner == address(0)) revert ZeroAddress();
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
 
-        // Generate deterministic salts
         bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, "TOKEN", _name, _symbol));
-        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", _name, _symbol));
 
         // Deploy token
         token = CREATE3.deploy(
@@ -75,29 +93,95 @@ contract NttFactory is Ownable {
         if (token == address(0)) revert DeploymentFailed();
 
         // deploy manager
+        IWormhole wh = IWormhole(envParams.wormholeCoreBridge); // FIXME double check
+        uint16 chainId = wh.chainId();
 
+        // TODO Separate params between manager and tranceiver
+        DeploymentParams memory params = DeploymentParams({
+            token: token,
+            mode: IManagerBase.Mode.BURNING, // FIXME change to support both
+            wormholeChainId: chainId,
+            rateLimitDuration: 86400,
+            shouldSkipRatelimiter: false,
+            wormholeCoreBridge: envParams.wormholeCoreBridge,
+            wormholeRelayerAddr: envParams.wormholeRelayerAddr,
+            specialRelayerAddr: envParams.specialRelayerAddr,
+            consistencyLevel: 202,
+            gasLimit: 500000,
+            // the trimming will trim this number to uint64.max
+            outboundLimit: uint256(type(uint64).max) * 1 // TODO apply scale for locking mode
+        });
+        address nttManager = deployNttManager(params);
+
+        // Deploy Wormhole Transceiver.
+        address transceiver = deployWormholeTransceiver(params, manager);
+
+        // Configure NttManager.
         // setPeer
+        // TODO Add peers as parameters
+        configureNttManager(manager, transceiver, params.outboundLimit, params.shouldSkipRatelimiter);
 
         emit TokenDeployed(token, _name, _symbol, _minter, _tokenOwner);
         emit ManagerDeployed(manager, token);
+        emit TranceiverDeployed(tranceiver, token);
 
-        return (token, manager);
+        return (token, manager, transceiver);
     }
 
     function deployNttManager(DeploymentParams memory params) internal returns (address) {
-        // Deploy the Manager Implementation.
         NttManager implementation = new NttManager(
             params.token, params.mode, params.wormholeChainId, params.rateLimitDuration, params.shouldSkipRatelimiter
         );
 
-        // NttManager Proxy
-        NttManager nttManagerProxy = NttManager(address(new ERC1967Proxy(address(implementation), "")));
+        // Get the same address across chains
+        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", params.token));
+
+        // Deploy token
+        NttManager nttManagerProxy = NttManager(
+            CREATE3.deploy(
+                managerSalt, abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(implementation))), 0
+            )
+        );
+        if (address(nttManagerProxy) == address(0)) revert DeploymentFailed();
 
         nttManagerProxy.initialize();
 
-        console2.log("NttManager:", address(nttManagerProxy));
-
         return address(nttManagerProxy);
+    }
+
+    // FIXME Do we need consistency across chains here?
+    function deployWormholeTransceiver(DeploymentParams memory params, address nttManager) internal returns (address) {
+        WormholeTransceiver implementation = new WormholeTransceiver(
+            nttManager,
+            params.wormholeCoreBridge,
+            params.wormholeRelayerAddr,
+            params.specialRelayerAddr,
+            params.consistencyLevel,
+            params.gasLimit
+        );
+
+        WormholeTransceiver transceiverProxy =
+            WormholeTransceiver(address(new ERC1967Proxy(address(implementation), "")));
+
+        transceiverProxy.initialize();
+
+        return address(transceiverProxy);
+    }
+
+    function configureNttManager(
+        address nttManager,
+        address transceiver,
+        uint256 outboundLimit,
+        bool shouldSkipRateLimiter
+    ) public {
+        IManagerBase(nttManager).setTransceiver(transceiver);
+
+        if (!shouldSkipRateLimiter) {
+            INttManager(nttManager).setOutboundLimit(outboundLimit);
+        }
+
+        // Hardcoded to one since these scripts handle Wormhole-only deployments.
+        INttManager(nttManager).setThreshold(1);
     }
 
     // TODO upgrade implementation

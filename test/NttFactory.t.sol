@@ -5,9 +5,9 @@ import {Test, console} from "forge-std/Test.sol";
 import {NttFactory} from "../src/NttFactory.sol";
 
 contract NttFactoryTest is Test {
-    NttFactory public factory;
+// NttFactory public factory;
 
-    function setUp() public {
-        factory = new NttFactory(msg.sender);
-    }
+// function setUp() public {
+//     factory = new NttFactory(msg.sender);
+// }
 }

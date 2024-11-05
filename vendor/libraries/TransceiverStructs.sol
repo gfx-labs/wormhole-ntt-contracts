@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity >=0.8.8 <0.9.0;
 
-import "lib/wormhole-solidity-sdk/libraries/BytesParsing.sol";
+import "lib/wormhole-solidity-sdk/src/libraries/BytesParsing.sol";
 import "./TrimmedAmount.sol";
 
 library TransceiverStructs {
