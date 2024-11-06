@@ -41,9 +41,7 @@ contract NttFactory is Ownable {
     }
 
     // --- Events ---
-    event TokenDeployed(
-        address indexed token, string name, string symbol, address indexed minter, address indexed owner
-    );
+    event TokenDeployed(address indexed token, string name, string symbol);
     event ManagerDeployed(address indexed manager, address indexed token);
     event TranceiverDeployed(address indexed tranceiver, address indexed token);
     event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
@@ -114,15 +112,15 @@ contract NttFactory is Ownable {
         address nttManager = deployNttManager(params);
 
         // Deploy Wormhole Transceiver.
-        address transceiver = deployWormholeTransceiver(params, manager);
+        address transceiver = deployWormholeTransceiver(params, nttManager);
 
         // Configure NttManager.
         // setPeer
         // TODO Add peers as parameters
-        configureNttManager(manager, transceiver, params.outboundLimit, params.shouldSkipRatelimiter);
+        configureNttManager(nttManager, transceiver, params.outboundLimit, params.shouldSkipRatelimiter);
 
-        emit TokenDeployed(token, _name, _symbol, _minter, _tokenOwner);
-        emit ManagerDeployed(manager, token);
+        emit TokenDeployed(token, _name, _symbol);
+        emit ManagerDeployed(nttManager, token);
         emit TranceiverDeployed(tranceiver, token);
 
         return (token, manager, transceiver);
