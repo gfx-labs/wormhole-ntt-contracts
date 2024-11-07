@@ -147,7 +147,6 @@ contract NttFactory is Ownable {
         return address(nttManagerProxy);
     }
 
-    // FIXME Do we need consistency across chains here?
     function deployWormholeTransceiver(DeploymentParams memory params, address nttManager) internal returns (address) {
         WormholeTransceiver implementation = new WormholeTransceiver(
             nttManager,
