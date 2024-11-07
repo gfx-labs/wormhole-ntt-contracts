@@ -6,7 +6,7 @@ src = "src"
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 [rpc_endpoints]
 arbitrum = "https://arbitrum.llamarpc.com"
-optimism = "https://optimism.llamarpc.com"
+optimism = "https://1rpc.io/op"
 
 [etherscan]
 arbitrum = {key = "${ARBITRUM_ETHERSCAN_KEY}"}
