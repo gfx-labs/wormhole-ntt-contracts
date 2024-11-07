@@ -10,3 +10,6 @@
 [submodule "lib/wormhole-solidity-sdk"]
 	path = lib/wormhole-solidity-sdk
 	url = https://github.com/wormhole-foundation/wormhole-solidity-sdk
+[submodule "lib/create3-factory"]
+	path = lib/create3-factory
+	url = https://github.com/zeframlou/create3-factory
