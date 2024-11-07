@@ -27,10 +27,7 @@ contract NttFactoryDeploy is Script {
         NttFactory factory = NttFactory(
             CREATE3.deploy(
                 FACTORY_SALT,
-                abi.encodePacked(
-                    type(NttFactory).creationCode,
-                    abi.encode(msg.sender, VERSION, wormholeCoreBridge, wormholeRelayerAddr, specialRelayerAddr)
-                ),
+                abi.encodePacked(type(NttFactory).creationCode, abi.encode(msg.sender, VERSION)),
                 msg.value
             )
         );
