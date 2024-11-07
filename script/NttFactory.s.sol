@@ -5,10 +5,10 @@ import {Script, console2} from "forge-std/Script.sol";
 import {NttFactory} from "../src/NttFactory.sol";
 import {CREATE3Factory} from "lib/create3-factory/src/CREATE3Factory.sol";
 
-contract NttFactoryDeploy is Script, CREATE3Factory {
-    function setUp() public {}
-
+contract NttFactoryDeploy is Script {
     function run() public payable {
+        CREATE3Factory create3Factory = CREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
+
         bytes32 VERSION = keccak256(abi.encodePacked(vm.envString("VERSION")));
 
         // Hardcoded EnvParams from environment variables
@@ -25,7 +25,9 @@ contract NttFactoryDeploy is Script, CREATE3Factory {
         vm.startBroadcast(deployerPrivateKey);
 
         NttFactory factory = NttFactory(
-            this.deploy(FACTORY_SALT, abi.encodePacked(type(NttFactory).creationCode, abi.encode(deployer, VERSION)))
+            create3Factory.deploy(
+                FACTORY_SALT, abi.encodePacked(type(NttFactory).creationCode, abi.encode(deployer, VERSION))
+            )
         );
 
         vm.stopBroadcast();
