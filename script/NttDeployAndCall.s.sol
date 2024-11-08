@@ -30,7 +30,7 @@ contract NttDeployAndCall is Script {
         vm.startBroadcast(deployerPrivateKey);
         NttFactory factory = NttFactory(nttFactory);
         factory.deployNtt(
-            "token",
+            "token1",
             "TKN",
             msg.sender,
             msg.sender,

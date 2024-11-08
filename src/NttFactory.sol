@@ -3,6 +3,8 @@ pragma solidity ^0.8.13;
 
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Create2} from "lib/openzeppelin-contracts/contracts/utils/Create2.sol";
 import {PeerToken} from "vendor/tokens/PeerToken.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
 import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
@@ -128,26 +130,24 @@ contract NttFactory is Ownable {
         return (token, manager, transceiver);
     }
 
+    // TODO Replace SALT
     function deployNttManager(DeploymentParams memory params, bytes memory nttManagerBytecode)
         internal
         returns (address)
     {
-        NttManager implementation = NttManager(
-            CREATE3.deploy(
-                "test",
-                abi.encodePacked(
-                    nttManagerBytecode,
-                    abi.encode(
-                        params.token,
-                        params.mode,
-                        params.wormholeChainId,
-                        params.rateLimitDuration,
-                        params.shouldSkipRatelimiter
-                    )
-                ),
-                0
+        bytes32 salt = "test1";
+        bytes memory bytecode = abi.encodePacked(
+            nttManagerBytecode,
+            abi.encode(
+                params.token,
+                params.mode,
+                params.wormholeChainId,
+                params.rateLimitDuration,
+                params.shouldSkipRatelimiter
             )
         );
+
+        NttManager implementation = NttManager(Create2.deploy(0, salt, bytecode));
 
         // Get the same address across chains
         bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", params.token));
@@ -170,23 +170,19 @@ contract NttFactory is Ownable {
         address nttManager,
         bytes memory nttTransceiverBytecode
     ) internal returns (address) {
-        WormholeTransceiver implementation = WormholeTransceiver(
-            CREATE3.deploy(
-                "test",
-                abi.encodePacked(
-                    nttTransceiverBytecode,
-                    abi.encode(
-                        nttManager,
-                        params.wormholeCoreBridge,
-                        params.wormholeRelayerAddr,
-                        params.specialRelayerAddr,
-                        params.consistencyLevel,
-                        params.gasLimit
-                    )
-                ),
-                0
+        bytes32 salt = "test1";
+        bytes memory bytecode = abi.encodePacked(
+            nttTransceiverBytecode,
+            abi.encode(
+                nttManager,
+                params.wormholeCoreBridge,
+                params.wormholeRelayerAddr,
+                params.specialRelayerAddr,
+                params.consistencyLevel,
+                params.gasLimit
             )
         );
+        WormholeTransceiver implementation = WormholeTransceiver(Create2.deploy(0, salt, bytecode));
 
         WormholeTransceiver transceiverProxy =
             WormholeTransceiver(address(new ERC1967Proxy(address(implementation), "")));
