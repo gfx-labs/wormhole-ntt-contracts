@@ -1,0 +1,12 @@
+{
+  "name": "wormhole-ntt-contracts",
+  "version": "1.0.0",
+  "description": "wormhole-ntt-contracts",
+  "main": "",
+  "scripts": {
+    "clean": "rm -rf cache out && forge clean"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {}
+}

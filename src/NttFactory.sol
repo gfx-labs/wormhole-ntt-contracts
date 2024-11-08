@@ -75,7 +75,9 @@ contract NttFactory is Ownable {
         string memory _symbol,
         address _minter,
         address _tokenOwner,
-        EnvParams memory envParams
+        EnvParams memory envParams,
+        bytes memory nttManagerBytecode,
+        bytes memory nttTransceiverBytecode
     ) external onlyOwner returns (address token, address manager, address tranceiver) {
         if (_minter == address(0) || _tokenOwner == address(0)) revert ZeroAddress();
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
@@ -109,10 +111,10 @@ contract NttFactory is Ownable {
             // the trimming will trim this number to uint64.max
             outboundLimit: uint256(type(uint64).max) * 1 // TODO apply scale for locking mode
         });
-        address nttManager = deployNttManager(params);
+        address nttManager = deployNttManager(params, nttManagerBytecode);
 
         // Deploy Wormhole Transceiver.
-        address transceiver = deployWormholeTransceiver(params, nttManager);
+        address transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
 
         // Configure NttManager.
         // setPeer
@@ -126,15 +128,31 @@ contract NttFactory is Ownable {
         return (token, manager, transceiver);
     }
 
-    function deployNttManager(DeploymentParams memory params) internal returns (address) {
-        NttManager implementation = new NttManager(
-            params.token, params.mode, params.wormholeChainId, params.rateLimitDuration, params.shouldSkipRatelimiter
+    function deployNttManager(DeploymentParams memory params, bytes memory nttManagerBytecode)
+        internal
+        returns (address)
+    {
+        NttManager implementation = NttManager(
+            CREATE3.deploy(
+                "test",
+                abi.encodePacked(
+                    nttManagerBytecode,
+                    abi.encode(
+                        params.token,
+                        params.mode,
+                        params.wormholeChainId,
+                        params.rateLimitDuration,
+                        params.shouldSkipRatelimiter
+                    )
+                ),
+                0
+            )
         );
 
         // Get the same address across chains
         bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", params.token));
 
-        // Deploy token
+        // Deploy deterministic nttManagerProxy
         NttManager nttManagerProxy = NttManager(
             CREATE3.deploy(
                 managerSalt, abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(implementation))), 0
@@ -147,14 +165,27 @@ contract NttFactory is Ownable {
         return address(nttManagerProxy);
     }
 
-    function deployWormholeTransceiver(DeploymentParams memory params, address nttManager) internal returns (address) {
-        WormholeTransceiver implementation = new WormholeTransceiver(
-            nttManager,
-            params.wormholeCoreBridge,
-            params.wormholeRelayerAddr,
-            params.specialRelayerAddr,
-            params.consistencyLevel,
-            params.gasLimit
+    function deployWormholeTransceiver(
+        DeploymentParams memory params,
+        address nttManager,
+        bytes memory nttTransceiverBytecode
+    ) internal returns (address) {
+        WormholeTransceiver implementation = WormholeTransceiver(
+            CREATE3.deploy(
+                "test",
+                abi.encodePacked(
+                    nttTransceiverBytecode,
+                    abi.encode(
+                        nttManager,
+                        params.wormholeCoreBridge,
+                        params.wormholeRelayerAddr,
+                        params.specialRelayerAddr,
+                        params.consistencyLevel,
+                        params.gasLimit
+                    )
+                ),
+                0
+            )
         );
 
         WormholeTransceiver transceiverProxy =
