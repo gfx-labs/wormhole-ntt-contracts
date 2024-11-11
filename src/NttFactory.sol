@@ -69,8 +69,8 @@ contract NttFactory is Ownable {
      * @param _minter Initial minter address
      * @param _tokenOwner Token owner address
      * @return token Address of deployed token
-     * @return manager Address of deployed manager
-     * @return tranceiver Address of deployed tranceiver
+     * @return nttManager Address of deployed manager
+     * @return transceiver Address of deployed tranceiver
      */
     function deployNtt(
         string memory _name,
@@ -80,7 +80,7 @@ contract NttFactory is Ownable {
         EnvParams memory envParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
-    ) external onlyOwner returns (address token, address manager, address tranceiver) {
+    ) external onlyOwner returns (address token, address nttManager, address transceiver) {
         if (_minter == address(0) || _tokenOwner == address(0)) revert ZeroAddress();
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
 
@@ -94,7 +94,7 @@ contract NttFactory is Ownable {
         );
         if (token == address(0)) revert DeploymentFailed();
 
-        // deploy manager
+        // // deploy manager
         IWormhole wh = IWormhole(envParams.wormholeCoreBridge); // FIXME double check
         uint16 chainId = wh.chainId();
 
@@ -113,10 +113,10 @@ contract NttFactory is Ownable {
             // the trimming will trim this number to uint64.max
             outboundLimit: uint256(type(uint64).max) * 1 // TODO apply scale for locking mode
         });
-        address nttManager = deployNttManager(params, nttManagerBytecode);
+        nttManager = deployNttManager(params, nttManagerBytecode);
 
         // Deploy Wormhole Transceiver.
-        address transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
+        transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
 
         // Configure NttManager.
         // setPeer
@@ -125,9 +125,9 @@ contract NttFactory is Ownable {
 
         emit TokenDeployed(token, _name, _symbol);
         emit ManagerDeployed(nttManager, token);
-        emit TranceiverDeployed(tranceiver, token);
+        emit TranceiverDeployed(transceiver, token);
 
-        return (token, manager, transceiver);
+        return (token, nttManager, transceiver);
     }
 
     // TODO Replace SALT
@@ -153,11 +153,10 @@ contract NttFactory is Ownable {
         bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", params.token));
 
         // Deploy deterministic nttManagerProxy
-        NttManager nttManagerProxy = NttManager(
-            CREATE3.deploy(
-                managerSalt, abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(implementation))), 0
-            )
-        );
+        bytes memory proxyCreationCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(implementation), ""));
+
+        NttManager nttManagerProxy = NttManager(CREATE3.deploy(managerSalt, proxyCreationCode, 0));
         if (address(nttManagerProxy) == address(0)) revert DeploymentFailed();
 
         nttManagerProxy.initialize();
@@ -170,7 +169,7 @@ contract NttFactory is Ownable {
         address nttManager,
         bytes memory nttTransceiverBytecode
     ) internal returns (address) {
-        bytes32 salt = "test1";
+        bytes32 salt = "test1"; // TODO Fix this.
         bytes memory bytecode = abi.encodePacked(
             nttTransceiverBytecode,
             abi.encode(
