@@ -8,36 +8,28 @@ import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/Wormho
 
 contract NttDeployAndCall is Script {
     function run() public payable {
-        // Hardcoded EnvParams from environment variables
-        address wormholeCoreBridge = vm.envAddress("WORMHOLE_CORE_BRIDGE");
-        address wormholeRelayerAddr = vm.envAddress("WORMHOLE_RELAYER_ADDR");
-        address specialRelayerAddr = vm.envAddress("SPECIAL_RELAYER_ADDR");
-
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address nttFactory = vm.envAddress("NTT_FACTORY");
 
-        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
-
-        bytes32 VERSION = keccak256(abi.encodePacked(vm.envString("VERSION")));
-        bytes32 salt = keccak256(abi.encodePacked(deployer, VERSION));
-
         NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: wormholeCoreBridge,
-            wormholeRelayerAddr: wormholeRelayerAddr,
-            specialRelayerAddr: specialRelayerAddr
+            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE"),
+            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR"),
+            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR")
         });
 
         vm.startBroadcast(deployerPrivateKey);
+
         NttFactory factory = NttFactory(nttFactory);
         factory.deployNtt(
             "token1",
-            "TKN",
+            "TKN1",
             msg.sender,
             msg.sender,
             envParams,
             type(NttManager).creationCode,
             type(WormholeTransceiver).creationCode
         );
+
         vm.stopBroadcast();
 
         console2.log("Factory deployed to:", address(factory));

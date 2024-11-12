@@ -94,11 +94,10 @@ contract NttFactory is Ownable {
         );
         if (token == address(0)) revert DeploymentFailed();
 
-        // // deploy manager
-        IWormhole wh = IWormhole(envParams.wormholeCoreBridge); // FIXME double check
+        // deploy manager
+        IWormhole wh = IWormhole(envParams.wormholeCoreBridge);
         uint16 chainId = wh.chainId();
 
-        // TODO Separate params between manager and tranceiver
         DeploymentParams memory params = DeploymentParams({
             token: token,
             mode: IManagerBase.Mode.BURNING, // FIXME change to support both
@@ -119,7 +118,6 @@ contract NttFactory is Ownable {
         transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
 
         // Configure NttManager.
-        // setPeer
         // TODO Add peers as parameters
         configureNttManager(nttManager, transceiver, params.outboundLimit, params.shouldSkipRatelimiter);
 
@@ -135,7 +133,8 @@ contract NttFactory is Ownable {
         internal
         returns (address)
     {
-        bytes32 salt = "test1";
+        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", address(this)));
+
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
             abi.encode(
@@ -147,9 +146,9 @@ contract NttFactory is Ownable {
             )
         );
 
-        NttManager implementation = NttManager(Create2.deploy(0, salt, bytecode));
+        NttManager implementation = NttManager(Create2.deploy(0, implementationSalt, bytecode));
 
-        // Get the same address across chains
+        // Get the same address across chains for the proxy
         bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", params.token));
 
         // Deploy deterministic nttManagerProxy
@@ -169,7 +168,8 @@ contract NttFactory is Ownable {
         address nttManager,
         bytes memory nttTransceiverBytecode
     ) internal returns (address) {
-        bytes32 salt = "test1"; // TODO Fix this.
+        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", address(this)));
+
         bytes memory bytecode = abi.encodePacked(
             nttTransceiverBytecode,
             abi.encode(
@@ -181,7 +181,7 @@ contract NttFactory is Ownable {
                 params.gasLimit
             )
         );
-        WormholeTransceiver implementation = WormholeTransceiver(Create2.deploy(0, salt, bytecode));
+        WormholeTransceiver implementation = WormholeTransceiver(Create2.deploy(0, implementationSalt, bytecode));
 
         WormholeTransceiver transceiverProxy =
             WormholeTransceiver(address(new ERC1967Proxy(address(implementation), "")));
