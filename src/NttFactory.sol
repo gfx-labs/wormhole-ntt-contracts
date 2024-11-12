@@ -80,7 +80,7 @@ contract NttFactory is Ownable {
         EnvParams memory envParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
-    ) external onlyOwner returns (address token, address nttManager, address transceiver) {
+    ) external returns (address token, address nttManager, address transceiver) {
         if (_minter == address(0) || _tokenOwner == address(0)) revert ZeroAddress();
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
 
