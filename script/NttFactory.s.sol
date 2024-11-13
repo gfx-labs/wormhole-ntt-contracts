@@ -12,10 +12,25 @@ contract NttFactoryDeploy is Script {
         bytes32 VERSION = keccak256(abi.encodePacked(vm.envString("VERSION")));
         bytes32 salt = keccak256(abi.encodePacked(deployer, VERSION));
 
+        // Base Sepolia
+        vm.createSelectFork("base-sepolia");
         vm.startBroadcast(deployerPrivateKey);
-        NttFactory factory = new NttFactory{salt: salt}(deployer, VERSION);
+        NttFactory factoryBaseSepolia = new NttFactory{salt: salt}(VERSION);
         vm.stopBroadcast();
+        console2.log("Base Sepolia Factory deployed to:", address(factoryBaseSepolia));
 
-        console2.log("Factory deployed to:", address(factory));
+        // Eth Sepolia
+        vm.createSelectFork("eth-sepolia");
+        vm.startBroadcast(deployerPrivateKey);
+        NttFactory factoryEthSepolia = new NttFactory{salt: salt}(VERSION);
+        vm.stopBroadcast();
+        console2.log("Eth Sepolia Factory deployed to:", address(factoryEthSepolia));
+
+        // Op Sepolia
+        vm.createSelectFork("opt-sepolia");
+        vm.startBroadcast(deployerPrivateKey);
+        NttFactory factoryOpSepolia = new NttFactory{salt: salt}(VERSION);
+        vm.stopBroadcast();
+        console2.log("Op Sepolia Factory deployed to:", address(factoryOpSepolia));
     }
 }

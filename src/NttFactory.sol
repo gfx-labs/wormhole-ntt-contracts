@@ -3,14 +3,16 @@ pragma solidity ^0.8.13;
 
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "lib/openzeppelin-contracts/contracts/utils/Create2.sol";
-import {PeerToken} from "vendor/tokens/PeerToken.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
-import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
+
 import {NttManager} from "vendor/NttManager/NttManager.sol";
+import {PeerToken} from "vendor/tokens/PeerToken.sol";
+import {PausableOwnable} from "vendor/libraries/PausableOwnable.sol";
 import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
 import {INttManager} from "vendor/interfaces/INttManager.sol";
+import {ITransceiver} from "vendor/interfaces/ITransceiver.sol";
 
 interface IWormhole {
     function chainId() external view returns (uint16);
@@ -20,7 +22,7 @@ interface IWormhole {
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens and their managers
  */
-contract NttFactory is Ownable {
+contract NttFactory {
     // --- Structs ---
     struct EnvParams {
         address wormholeCoreBridge;
@@ -57,7 +59,7 @@ contract NttFactory is Ownable {
     bytes32 public immutable VERSION;
     mapping(address => address) public tokenToManager;
 
-    constructor(address _owner, bytes32 _version) Ownable(_owner) {
+    constructor(bytes32 _version) {
         if (_version == bytes32(0)) revert InvalidParameters();
         VERSION = _version;
     }
@@ -84,7 +86,7 @@ contract NttFactory is Ownable {
         if (_minter == address(0) || _tokenOwner == address(0)) revert ZeroAddress();
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
 
-        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, "TOKEN", _name, _symbol));
+        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol));
 
         // Deploy token
         token = CREATE3.deploy(
@@ -92,7 +94,6 @@ contract NttFactory is Ownable {
             abi.encodePacked(type(PeerToken).creationCode, abi.encode(_name, _symbol, _minter, _tokenOwner)),
             0
         );
-        if (token == address(0)) revert DeploymentFailed();
 
         // deploy manager
         IWormhole wh = IWormhole(envParams.wormholeCoreBridge);
@@ -119,7 +120,7 @@ contract NttFactory is Ownable {
 
         // Configure NttManager.
         // TODO Add peers as parameters
-        configureNttManager(nttManager, transceiver, params.outboundLimit, params.shouldSkipRatelimiter);
+        configureNttManager(nttManager, transceiver, _tokenOwner, params.outboundLimit, params.shouldSkipRatelimiter);
 
         emit TokenDeployed(token, _name, _symbol);
         emit ManagerDeployed(nttManager, token);
@@ -133,7 +134,7 @@ contract NttFactory is Ownable {
         internal
         returns (address)
     {
-        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", address(this)));
+        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
@@ -146,18 +147,18 @@ contract NttFactory is Ownable {
             )
         );
 
-        NttManager implementation = NttManager(Create2.deploy(0, implementationSalt, bytecode));
+        address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
         // Get the same address across chains for the proxy
-        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", params.token));
+        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", msg.sender, params.token));
 
         // Deploy deterministic nttManagerProxy
         bytes memory proxyCreationCode =
-            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(implementation), ""));
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
 
         NttManager nttManagerProxy = NttManager(CREATE3.deploy(managerSalt, proxyCreationCode, 0));
-        if (address(nttManagerProxy) == address(0)) revert DeploymentFailed();
 
+        // This is made here, not in constructor because only the deployer can call it
         nttManagerProxy.initialize();
 
         return address(nttManagerProxy);
@@ -168,7 +169,7 @@ contract NttFactory is Ownable {
         address nttManager,
         bytes memory nttTransceiverBytecode
     ) internal returns (address) {
-        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", address(this)));
+        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttTransceiverBytecode,
@@ -181,10 +182,9 @@ contract NttFactory is Ownable {
                 params.gasLimit
             )
         );
-        WormholeTransceiver implementation = WormholeTransceiver(Create2.deploy(0, implementationSalt, bytecode));
+        address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
-        WormholeTransceiver transceiverProxy =
-            WormholeTransceiver(address(new ERC1967Proxy(address(implementation), "")));
+        WormholeTransceiver transceiverProxy = WormholeTransceiver(address(new ERC1967Proxy(implementation, "")));
 
         transceiverProxy.initialize();
 
@@ -194,6 +194,7 @@ contract NttFactory is Ownable {
     function configureNttManager(
         address nttManager,
         address transceiver,
+        address owner,
         uint256 outboundLimit,
         bool shouldSkipRateLimiter
     ) public {
@@ -205,6 +206,9 @@ contract NttFactory is Ownable {
 
         // Hardcoded to one since these scripts handle Wormhole-only deployments.
         INttManager(nttManager).setThreshold(1);
+        PausableOwnable(nttManager).transferPauserCapability(owner);
+        PausableOwnable(nttManager).transferOwnership(owner);
+        ITransceiver(transceiver).transferTransceiverOwnership(owner);
     }
 
     // TODO upgrade implementation
