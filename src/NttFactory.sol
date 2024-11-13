@@ -208,7 +208,7 @@ contract NttFactory {
         INttManager(nttManager).setThreshold(1);
         PausableOwnable(nttManager).transferPauserCapability(owner);
         PausableOwnable(nttManager).transferOwnership(owner);
-        ITransceiver(transceiver).transferTransceiverOwnership(owner);
+        //ITransceiver(transceiver).transferTransceiverOwnership(owner);
     }
 
     // TODO upgrade implementation
