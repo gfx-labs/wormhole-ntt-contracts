@@ -8,89 +8,60 @@ import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/Wormho
 
 contract NttDeployAndCall is Script {
     function run() public payable {
-        deployBaseSepolia();
-        //deployEthSepolia();
-        //deployOpSepolia();
-    }
-
-    function deployBaseSepolia() internal {
-        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address nttFactory = vm.envAddress("NTT_FACTORY");
-
-        // Base Sepolia
-        vm.createSelectFork("base-sepolia");
         NttFactory.EnvParams memory envParamsBaseSepolia = NttFactory.EnvParams({
             wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_BASE_SEPOLIA"),
             wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_BASE_SEPOLIA"),
             specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_BASE_SEPOLIA")
         });
 
+        NttFactory.EnvParams memory envParamsEthSepolia = NttFactory.EnvParams({
+            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ETH_SEPOLIA"),
+            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ETH_SEPOLIA"),
+            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
+        });
+
+        NttFactory.EnvParams memory envParamsOpSepolia = NttFactory.EnvParams({
+            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
+            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_OP_SEPOLIA"),
+            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_OP_SEPOLIA")
+        });
+
+        uint16 sepolia = 10002;
+        uint16 baseSepolia = 10004;
+
+        //deploy(envParamsBaseSepolia, sepolia);
+        deploy(envParamsEthSepolia, baseSepolia);
+    }
+
+    function deploy(NttFactory.EnvParams memory envParams, uint16 peerChainId) internal {
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address nttFactory = vm.envAddress("NTT_FACTORY");
+
+        uint256 initialSupply = 1000000000000000000000;
+        uint256 inboundLimit = 1000000000000000000000;
+        uint8 decimals = 18;
+
+        NttFactory.PeerParams memory peerParams = NttFactory.PeerParams({
+            peerChainId: peerChainId,
+            // peerContract: normalizedAddress,
+            decimals: decimals,
+            inboundLimit: inboundLimit
+        });
+
         vm.startBroadcast(deployerPrivateKey);
         NttFactory factoryBaseSepolia = NttFactory(nttFactory);
         factoryBaseSepolia.deployNtt(
-            "token",
+            "token1",
             "TKN",
-            msg.sender,
-            msg.sender,
-            envParamsBaseSepolia,
+            nttFactory, // we make it minter to be able to mint on the same step
+            nttFactory,
+            initialSupply,
+            envParams,
+            peerParams,
             type(NttManager).creationCode,
             type(WormholeTransceiver).creationCode
         );
         vm.stopBroadcast();
         console2.log("Base Sepolia deployment completed.");
     }
-
-    // function deployEthSepolia() internal {
-    //     uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-    //     address nttFactory = vm.envAddress("NTT_FACTORY");
-
-    //     // Eth Sepolia
-    //     vm.createSelectFork("eth-sepolia");
-    //     NttFactory.EnvParams memory envParamsEthSepolia = NttFactory.EnvParams({
-    //         wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ETH_SEPOLIA"),
-    //         wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ETH_SEPOLIA"),
-    //         specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
-    //     });
-
-    //     vm.startBroadcast(deployerPrivateKey);
-    //     NttFactory factoryEthSepolia = NttFactory(nttFactory);
-    //     factoryEthSepolia.deployNtt(
-    //         "token",
-    //         "TKN",
-    //         msg.sender,
-    //         msg.sender,
-    //         envParamsEthSepolia,
-    //         type(NttManager).creationCode,
-    //         type(WormholeTransceiver).creationCode
-    //     );
-    //     vm.stopBroadcast();
-    //     console2.log("Eth Sepolia deployment completed.");
-    // }
-
-    // function deployOpSepolia() internal {
-    //     uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-    //     address nttFactory = vm.envAddress("NTT_FACTORY");
-
-    //     // Op Sepolia
-    //     vm.createSelectFork("op-sepolia");
-    //     NttFactory.EnvParams memory envParamsOpSepolia = NttFactory.EnvParams({
-    //         wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
-    //         wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_OP_SEPOLIA"),
-    //         specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_OP_SEPOLIA")
-    //     });
-
-    //     vm.startBroadcast(deployerPrivateKey);
-    //     NttFactory factoryOpSepolia = NttFactory(nttFactory);
-    //     factoryOpSepolia.deployNtt(
-    //         "token",
-    //         "TKN",
-    //         msg.sender,
-    //         msg.sender,
-    //         envParamsOpSepolia,
-    //         type(NttManager).creationCode,
-    //         type(WormholeTransceiver).creationCode
-    //     );
-    //     vm.stopBroadcast();
-    //     console2.log("Op Sepolia deployment completed.");
-    // }
 }

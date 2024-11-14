@@ -44,6 +44,13 @@ contract NttFactory {
         uint256 outboundLimit;
     }
 
+    struct PeerParams {
+        uint16 peerChainId;
+        // bytes32 peerContract;
+        uint8 decimals;
+        uint256 inboundLimit;
+    }
+
     // --- Events ---
     event TokenDeployed(address indexed token, string name, string symbol);
     event ManagerDeployed(address indexed manager, address indexed token);
@@ -79,7 +86,9 @@ contract NttFactory {
         string memory _symbol,
         address _minter,
         address _tokenOwner,
+        uint256 _initialSupply,
         EnvParams memory envParams,
+        PeerParams memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
     ) external returns (address token, address nttManager, address transceiver) {
@@ -115,12 +124,17 @@ contract NttFactory {
         });
         nttManager = deployNttManager(params, nttManagerBytecode);
 
+        PeerToken(token).mint(msg.sender, _initialSupply);
+        PeerToken(token).setMinter(nttManager);
+        Ownable(token).transferOwnership(msg.sender);
+
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
 
-        // Configure NttManager.
-        // TODO Add peers as parameters
-        configureNttManager(nttManager, transceiver, _tokenOwner, params.outboundLimit, params.shouldSkipRatelimiter);
+        // Configure NttManager. At the end the owner will be `owner` and not this factory
+        configureNttManager(
+            nttManager, transceiver, _tokenOwner, peerParams, params.outboundLimit, params.shouldSkipRatelimiter
+        );
 
         emit TokenDeployed(token, _name, _symbol);
         emit ManagerDeployed(nttManager, token);
@@ -129,7 +143,6 @@ contract NttFactory {
         return (token, nttManager, transceiver);
     }
 
-    // TODO Replace SALT
     function deployNttManager(DeploymentParams memory params, bytes memory nttManagerBytecode)
         internal
         returns (address)
@@ -195,6 +208,7 @@ contract NttFactory {
         address nttManager,
         address transceiver,
         address owner,
+        PeerParams memory peerParams,
         uint256 outboundLimit,
         bool shouldSkipRateLimiter
     ) public {
@@ -204,11 +218,17 @@ contract NttFactory {
             INttManager(nttManager).setOutboundLimit(outboundLimit);
         }
 
+        bytes32 normalizedAddress = bytes32(uint256(uint160(nttManager)));
+
+        INttManager(nttManager).setPeer(
+            peerParams.peerChainId, normalizedAddress, peerParams.decimals, peerParams.inboundLimit
+        );
+
         // Hardcoded to one since these scripts handle Wormhole-only deployments.
         INttManager(nttManager).setThreshold(1);
+
         PausableOwnable(nttManager).transferPauserCapability(owner);
         PausableOwnable(nttManager).transferOwnership(owner);
-        //ITransceiver(transceiver).transferTransceiverOwnership(owner);
     }
 
     // TODO upgrade implementation
