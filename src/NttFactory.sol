@@ -84,8 +84,8 @@ contract NttFactory {
     function deployNtt(
         string memory _name,
         string memory _symbol,
-        address _minter,
-        address _tokenOwner,
+        address _minter, // Remove minter
+        address _tokenOwner, // Copy from msg.sender
         uint256 _initialSupply,
         EnvParams memory envParams,
         PeerParams memory peerParams,
@@ -97,10 +97,10 @@ contract NttFactory {
 
         bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol));
 
-        // Deploy token
+        // Deploy token. Initially we need to have minter and owner as this factory.
         token = CREATE3.deploy(
             tokenSalt,
-            abi.encodePacked(type(PeerToken).creationCode, abi.encode(_name, _symbol, _minter, _tokenOwner)),
+            abi.encodePacked(type(PeerToken).creationCode, abi.encode(_name, _symbol, address(this), address(this))),
             0
         );
 
@@ -124,9 +124,14 @@ contract NttFactory {
         });
         nttManager = deployNttManager(params, nttManagerBytecode);
 
-        PeerToken(token).mint(msg.sender, _initialSupply);
+        // caller nttFactory
+        PeerToken(token).mint(_tokenOwner, _initialSupply);
+
+        // move minter from factory to nttManager
         PeerToken(token).setMinter(nttManager);
-        Ownable(token).transferOwnership(msg.sender);
+
+        // but leave ownership to tokenOwner
+        Ownable(token).transferOwnership(_tokenOwner);
 
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
