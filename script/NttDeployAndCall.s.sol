@@ -29,34 +29,28 @@ contract NttDeployAndCall is Script {
         uint16 sepolia = 10002;
         uint16 baseSepolia = 10004;
 
-        deploy(envParamsBaseSepolia, sepolia);
-        // deploy(envParamsEthSepolia, baseSepolia);
+        // deploy(envParamsBaseSepolia, sepolia);
+        deploy(envParamsEthSepolia, baseSepolia);
     }
 
     function deploy(NttFactory.EnvParams memory envParams, uint16 peerChainId) internal {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address nttFactory = vm.envAddress("NTT_FACTORY");
 
-        address _tokenOwner = 0x7EA57D754a845808c1f640271A46df98F8e75894;
-
         uint256 initialSupply = 1000000000000000000000;
         uint256 inboundLimit = 1000000000000000000000;
         uint8 decimals = 18;
 
-        NttFactory.PeerParams memory peerParams = NttFactory.PeerParams({
-            peerChainId: peerChainId,
-            // peerContract: normalizedAddress,
-            decimals: decimals,
-            inboundLimit: inboundLimit
-        });
+        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
+        peerParams[0] =
+            NttFactory.PeerParams({peerChainId: peerChainId, decimals: decimals, inboundLimit: inboundLimit});
 
         vm.startBroadcast(deployerPrivateKey);
         NttFactory factoryBaseSepolia = NttFactory(nttFactory);
         factoryBaseSepolia.deployNtt(
-            "token2",
+            "token3",
             "TKN",
-            _tokenOwner,
-            _tokenOwner, // TODO remove
+            initialSupply,
             initialSupply,
             envParams,
             peerParams,

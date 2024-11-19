@@ -58,13 +58,11 @@ contract NttFactory {
     event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
 
     // --- Errors ---
-    error ZeroAddress();
     error DeploymentFailed();
     error InvalidParameters();
 
     // --- State ---
     bytes32 public immutable VERSION;
-    mapping(address => address) public tokenToManager;
 
     constructor(bytes32 _version) {
         if (_version == bytes32(0)) revert InvalidParameters();
@@ -75,8 +73,10 @@ contract NttFactory {
      * @notice Deploy a new NTT token and its manager
      * @param _name Token name
      * @param _symbol Token symbol
-     * @param _minter Initial minter address
-     * @param _tokenOwner Token owner address
+     * @param _initialSupply Initial supply of the token
+     * @param _outboundLimit Outbound limit for the token
+     * @param envParams Environment parameters for the deployment
+     * @param peerParams Peer parameters for the deployment
      * @return token Address of deployed token
      * @return nttManager Address of deployed manager
      * @return transceiver Address of deployed tranceiver
@@ -84,16 +84,16 @@ contract NttFactory {
     function deployNtt(
         string memory _name,
         string memory _symbol,
-        address _minter, // Remove minter
-        address _tokenOwner, // Copy from msg.sender
         uint256 _initialSupply,
+        uint256 _outboundLimit,
         EnvParams memory envParams,
-        PeerParams memory peerParams,
+        PeerParams[] memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
     ) external returns (address token, address nttManager, address transceiver) {
-        if (_minter == address(0) || _tokenOwner == address(0)) revert ZeroAddress();
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
+
+        address _tokenOwner = msg.sender;
 
         bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol));
 
@@ -119,8 +119,7 @@ contract NttFactory {
             specialRelayerAddr: envParams.specialRelayerAddr,
             consistencyLevel: 202,
             gasLimit: 500000,
-            // the trimming will trim this number to uint64.max
-            outboundLimit: uint256(type(uint64).max) * 1 // TODO apply scale for locking mode
+            outboundLimit: _outboundLimit // TODO apply scale for locking mode
         });
         nttManager = deployNttManager(params, nttManagerBytecode);
 
@@ -140,6 +139,8 @@ contract NttFactory {
         configureNttManager(
             nttManager, transceiver, _tokenOwner, peerParams, params.outboundLimit, params.shouldSkipRatelimiter
         );
+
+        configureNttTransceiver(transceiver, _tokenOwner);
 
         emit TokenDeployed(token, _name, _symbol);
         emit ManagerDeployed(nttManager, token);
@@ -209,11 +210,15 @@ contract NttFactory {
         return address(transceiverProxy);
     }
 
+    function configureNttTransceiver(address transceiver, address owner) public {
+        PausableOwnable(transceiver).transferPauserCapability(owner);
+    }
+
     function configureNttManager(
         address nttManager,
         address transceiver,
         address owner,
-        PeerParams memory peerParams,
+        PeerParams[] memory peerParams,
         uint256 outboundLimit,
         bool shouldSkipRateLimiter
     ) public {
@@ -224,10 +229,11 @@ contract NttFactory {
         }
 
         bytes32 normalizedAddress = bytes32(uint256(uint160(nttManager)));
-
-        INttManager(nttManager).setPeer(
-            peerParams.peerChainId, normalizedAddress, peerParams.decimals, peerParams.inboundLimit
-        );
+        for (uint256 i = 0; i < peerParams.length; i++) {
+            INttManager(nttManager).setPeer(
+                peerParams[i].peerChainId, normalizedAddress, peerParams[i].decimals, peerParams[i].inboundLimit
+            );
+        }
 
         // Hardcoded to one since these scripts handle Wormhole-only deployments.
         INttManager(nttManager).setThreshold(1);
@@ -235,6 +241,4 @@ contract NttFactory {
         PausableOwnable(nttManager).transferPauserCapability(owner);
         PausableOwnable(nttManager).transferOwnership(owner);
     }
-
-    // TODO upgrade implementation
 }
