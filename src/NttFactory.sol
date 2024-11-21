@@ -70,47 +70,44 @@ contract NttFactory {
     }
 
     /**
-     * @notice Deploy a new NTT token and its manager
-     * @param _name Token name
-     * @param _symbol Token symbol
-     * @param _initialSupply Initial supply of the token
-     * @param _outboundLimit Outbound limit for the token
+     * @notice Deploy a new NTT token, its manager and transceiver deterministically
+     * @param mode Mode of the manager
+     * @param newTokenName Name of the new token
+     * @param newTokenSymbol Symbol of the new token
+     * @param tokenAddress Address of the token
+     * @param newTokenInitialSupply Initial supply of the new token
+     * @param outboundLimit Outbound limit for the new token
      * @param envParams Environment parameters for the deployment
      * @param peerParams Peer parameters for the deployment
-     * @return token Address of deployed token
-     * @return nttManager Address of deployed manager
-     * @return transceiver Address of deployed tranceiver
+     * @param nttManagerBytecode Bytecode of the NTT manager
+     * @param nttTransceiverBytecode Bytecode of the NTT transceiver
+     * @return token Address of the deployed token
+     * @return nttManager Address of the deployed manager
+     * @return transceiver Address of the deployed tranceiver
      */
     function deployNtt(
-        string memory _name,
-        string memory _symbol,
-        uint256 _initialSupply,
-        uint256 _outboundLimit,
+        IManagerBase.Mode mode,
+        string memory newTokenName,
+        string memory newTokenSymbol,
+        address tokenAddress,
+        uint256 newTokenInitialSupply,
+        uint256 outboundLimit,
         EnvParams memory envParams,
         PeerParams[] memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
     ) external returns (address token, address nttManager, address transceiver) {
-        if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert InvalidParameters();
+        if (bytes(newTokenName).length == 0 || bytes(newTokenSymbol).length == 0) revert InvalidParameters();
 
-        address _tokenOwner = msg.sender;
+        address owner = msg.sender;
 
-        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol));
-
-        // Deploy token. Initially we need to have minter and owner as this factory.
-        token = CREATE3.deploy(
-            tokenSalt,
-            abi.encodePacked(type(PeerToken).creationCode, abi.encode(_name, _symbol, address(this), address(this))),
-            0
-        );
+        token = (mode == IManagerBase.Mode.BURNING) ? deployToken(newTokenName, newTokenSymbol) : token = tokenAddress;
 
         // deploy manager
-        IWormhole wh = IWormhole(envParams.wormholeCoreBridge);
-        uint16 chainId = wh.chainId();
-
+        uint16 chainId = IWormhole(envParams.wormholeCoreBridge).chainId();
         DeploymentParams memory params = DeploymentParams({
             token: token,
-            mode: IManagerBase.Mode.BURNING, // FIXME change to support both
+            mode: mode,
             wormholeChainId: chainId,
             rateLimitDuration: 86400,
             shouldSkipRatelimiter: false,
@@ -119,18 +116,13 @@ contract NttFactory {
             specialRelayerAddr: envParams.specialRelayerAddr,
             consistencyLevel: 202,
             gasLimit: 500000,
-            outboundLimit: _outboundLimit // TODO apply scale for locking mode
+            outboundLimit: outboundLimit
         });
         nttManager = deployNttManager(params, nttManagerBytecode);
 
-        // caller nttFactory
-        PeerToken(token).mint(_tokenOwner, _initialSupply);
-
-        // move minter from factory to nttManager
-        PeerToken(token).setMinter(nttManager);
-
-        // but leave ownership to tokenOwner
-        Ownable(token).transferOwnership(_tokenOwner);
+        if (params.mode == IManagerBase.Mode.BURNING) {
+            configureTokenSettings(token, owner, newTokenInitialSupply, nttManager);
+        }
 
         // Configure NttManager, but not ownership
         // To be able to call `configureNttTransceiver` from this factory
@@ -149,14 +141,41 @@ contract NttFactory {
         configureNttTransceiver(transceiver, peerParams);
 
         // change ownership of nttManager to tokenOwner now that everything is configured
-        PausableOwnable(nttManager).transferPauserCapability(_tokenOwner);
-        PausableOwnable(nttManager).transferOwnership(_tokenOwner);
+        PausableOwnable(nttManager).transferPauserCapability(owner);
+        PausableOwnable(nttManager).transferOwnership(owner);
 
-        emit TokenDeployed(token, _name, _symbol);
         emit ManagerDeployed(nttManager, token);
         emit TranceiverDeployed(transceiver, token);
 
         return (token, nttManager, transceiver);
+    }
+
+    function deployToken(string memory _name, string memory _symbol) internal returns (address) {
+        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol));
+
+        // Deploy token. Initially we need to have minter and owner as this factory.
+        address token = CREATE3.deploy(
+            tokenSalt,
+            abi.encodePacked(type(PeerToken).creationCode, abi.encode(_name, _symbol, address(this), address(this))),
+            0
+        );
+
+        emit TokenDeployed(token, _name, _symbol);
+
+        return token;
+    }
+
+    function configureTokenSettings(address token, address owner, uint256 _initialSupply, address nttManager)
+        internal
+    {
+        // caller nttFactory
+        PeerToken(token).mint(owner, _initialSupply);
+
+        // move minter from factory to nttManager
+        PeerToken(token).setMinter(nttManager);
+
+        // but leave ownership to tokenOwner
+        Ownable(token).transferOwnership(owner);
     }
 
     function deployNttManager(DeploymentParams memory params, bytes memory nttManagerBytecode)
@@ -228,7 +247,7 @@ contract NttFactory {
         return address(transceiverProxy);
     }
 
-    function configureNttTransceiver(address transceiver, PeerParams[] memory peerParams) public {
+    function configureNttTransceiver(address transceiver, PeerParams[] memory peerParams) internal {
         bytes32 normalizedTransceiverAddress = bytes32(uint256(uint160(transceiver)));
 
         for (uint256 i = 0; i < peerParams.length; i++) {
@@ -243,7 +262,7 @@ contract NttFactory {
         PeerParams[] memory peerParams,
         uint256 outboundLimit,
         bool shouldSkipRateLimiter
-    ) public {
+    ) internal {
         if (!shouldSkipRateLimiter) {
             INttManager(nttManager).setOutboundLimit(outboundLimit);
         }

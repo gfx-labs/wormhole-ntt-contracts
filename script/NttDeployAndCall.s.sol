@@ -4,21 +4,22 @@ pragma solidity ^0.8.13;
 import {Script, console2} from "forge-std/Script.sol";
 import {NttFactory} from "../src/NttFactory.sol";
 import {NttManager} from "vendor/NttManager/NttManager.sol";
+import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
 import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 
 contract NttDeployAndCall is Script {
     function run() public payable {
-        NttFactory.EnvParams memory envParamsBaseSepolia = NttFactory.EnvParams({
-            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_BASE_SEPOLIA"),
-            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_BASE_SEPOLIA"),
-            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_BASE_SEPOLIA")
-        });
+        // NttFactory.EnvParams memory envParamsBaseSepolia = NttFactory.EnvParams({
+        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_BASE_SEPOLIA"),
+        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_BASE_SEPOLIA"),
+        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_BASE_SEPOLIA")
+        // });
 
-        NttFactory.EnvParams memory envParamsEthSepolia = NttFactory.EnvParams({
-            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ETH_SEPOLIA"),
-            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ETH_SEPOLIA"),
-            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
-        });
+        // NttFactory.EnvParams memory envParamsEthSepolia = NttFactory.EnvParams({
+        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ETH_SEPOLIA"),
+        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ETH_SEPOLIA"),
+        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
+        // });
 
         NttFactory.EnvParams memory envParamsArbSepolia = NttFactory.EnvParams({
             wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ARB_SEPOLIA"),
@@ -26,15 +27,15 @@ contract NttDeployAndCall is Script {
             specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ARB_SEPOLIA")
         });
 
-        NttFactory.EnvParams memory envParamsOpSepolia = NttFactory.EnvParams({
-            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
-            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_OP_SEPOLIA"),
-            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_OP_SEPOLIA")
-        });
+        // NttFactory.EnvParams memory envParamsOpSepolia = NttFactory.EnvParams({
+        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
+        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_OP_SEPOLIA"),
+        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_OP_SEPOLIA")
+        // });
 
         // uint16 sepolia = 10002;
         uint16 baseSepolia = 10004;
-        uint16 arbSepolia = 10003;
+        //uint16 arbSepolia = 10003;
 
         // deploy(envParamsBaseSepolia, sepolia);
         deploy(envParamsArbSepolia, baseSepolia);
@@ -53,10 +54,14 @@ contract NttDeployAndCall is Script {
             NttFactory.PeerParams({peerChainId: peerChainId, decimals: decimals, inboundLimit: inboundLimit});
 
         vm.startBroadcast(deployerPrivateKey);
+        address zeroTokenAddress = 0x0000000000000000000000000000000000000000;
+
         NttFactory factoryBaseSepolia = NttFactory(nttFactory);
         factoryBaseSepolia.deployNtt(
+            IManagerBase.Mode.BURNING,
             "token5",
             "TKN",
+            zeroTokenAddress,
             initialSupply,
             initialSupply,
             envParams,
