@@ -132,15 +132,25 @@ contract NttFactory {
         // but leave ownership to tokenOwner
         Ownable(token).transferOwnership(_tokenOwner);
 
+        // Configure NttManager, but not ownership
+        // To be able to call `configureNttTransceiver` from this factory
+        configureNttManager(nttManager, peerParams, params.outboundLimit, params.shouldSkipRatelimiter);
+
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
 
-        // Configure NttManager. At the end the owner will be `owner` and not this factory
-        configureNttManager(
-            nttManager, transceiver, _tokenOwner, peerParams, params.outboundLimit, params.shouldSkipRatelimiter
-        );
+        // with the transceiver deployed, we are able to set it
+        IManagerBase(nttManager).setTransceiver(transceiver);
 
-        configureNttTransceiver(transceiver, _tokenOwner);
+        // As is only one transceiver now, with set to 1
+        INttManager(nttManager).setThreshold(1);
+
+        // Now transceiver can be configured from this factory
+        configureNttTransceiver(transceiver, peerParams);
+
+        // change ownership of nttManager to tokenOwner now that everything is configured
+        PausableOwnable(nttManager).transferPauserCapability(_tokenOwner);
+        PausableOwnable(nttManager).transferOwnership(_tokenOwner);
 
         emit TokenDeployed(token, _name, _symbol);
         emit ManagerDeployed(nttManager, token);
@@ -203,27 +213,37 @@ contract NttFactory {
         );
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
-        WormholeTransceiver transceiverProxy = WormholeTransceiver(address(new ERC1967Proxy(implementation, "")));
+        // Get the same address across chains for the proxy
+        bytes32 transceiverSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER", msg.sender, nttManager));
+
+        // Deploy deterministic nttTransceiverProxy
+        bytes memory proxyCreationCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
+
+        WormholeTransceiver transceiverProxy =
+            WormholeTransceiver(CREATE3.deploy(transceiverSalt, proxyCreationCode, 0));
 
         transceiverProxy.initialize();
 
         return address(transceiverProxy);
     }
 
-    function configureNttTransceiver(address transceiver, address owner) public {
-        PausableOwnable(transceiver).transferPauserCapability(owner);
+    function configureNttTransceiver(address transceiver, PeerParams[] memory peerParams) public {
+        bytes32 normalizedTransceiverAddress = bytes32(uint256(uint160(transceiver)));
+
+        for (uint256 i = 0; i < peerParams.length; i++) {
+            WormholeTransceiver(transceiver).setWormholePeer(peerParams[i].peerChainId, normalizedTransceiverAddress);
+            WormholeTransceiver(transceiver).setIsWormholeEvmChain(peerParams[i].peerChainId, true);
+            WormholeTransceiver(transceiver).setIsWormholeRelayingEnabled(peerParams[i].peerChainId, true);
+        }
     }
 
     function configureNttManager(
         address nttManager,
-        address transceiver,
-        address owner,
         PeerParams[] memory peerParams,
         uint256 outboundLimit,
         bool shouldSkipRateLimiter
     ) public {
-        IManagerBase(nttManager).setTransceiver(transceiver);
-
         if (!shouldSkipRateLimiter) {
             INttManager(nttManager).setOutboundLimit(outboundLimit);
         }
@@ -234,11 +254,5 @@ contract NttFactory {
                 peerParams[i].peerChainId, normalizedAddress, peerParams[i].decimals, peerParams[i].inboundLimit
             );
         }
-
-        // Hardcoded to one since these scripts handle Wormhole-only deployments.
-        INttManager(nttManager).setThreshold(1);
-
-        PausableOwnable(nttManager).transferPauserCapability(owner);
-        PausableOwnable(nttManager).transferOwnership(owner);
     }
 }
