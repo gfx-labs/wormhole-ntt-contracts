@@ -101,7 +101,7 @@ contract NttFactory {
 
         address owner = msg.sender;
 
-        token = (mode == IManagerBase.Mode.BURNING) ? deployToken(newTokenName, newTokenSymbol) : token = tokenAddress;
+        token = (mode == IManagerBase.Mode.BURNING) ? deployToken(newTokenName, newTokenSymbol) : tokenAddress;
 
         // deploy manager
         uint16 chainId = IWormhole(envParams.wormholeCoreBridge).chainId();
