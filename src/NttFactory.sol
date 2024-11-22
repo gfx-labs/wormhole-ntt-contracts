@@ -54,7 +54,7 @@ contract NttFactory {
     // --- Events ---
     event TokenDeployed(address indexed token, string name, string symbol);
     event ManagerDeployed(address indexed manager, address indexed token);
-    event TranceiverDeployed(address indexed tranceiver, address indexed token);
+    event TransceiverDeployed(address indexed transceiver, address indexed token);
     event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
 
     // --- Errors ---
@@ -83,7 +83,7 @@ contract NttFactory {
      * @param nttTransceiverBytecode Bytecode of the NTT transceiver
      * @return token Address of the deployed token
      * @return nttManager Address of the deployed manager
-     * @return transceiver Address of the deployed tranceiver
+     * @return transceiver Address of the deployed transceiver
      */
     function deployNtt(
         IManagerBase.Mode mode,
@@ -145,7 +145,7 @@ contract NttFactory {
         PausableOwnable(nttManager).transferOwnership(owner);
 
         emit ManagerDeployed(nttManager, token);
-        emit TranceiverDeployed(transceiver, token);
+        emit TransceiverDeployed(transceiver, token);
 
         return (token, nttManager, transceiver);
     }
