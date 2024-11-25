@@ -1,18 +1,21 @@
 [profile.default]
 out = "out"
 src = "src"
+viaIR = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 [rpc_endpoints]
 arbitrum = "https://arb-mainnet.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
-base-sepolia = "https://base-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
-eth-sepolia = "https://eth-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
-opt-sepolia = "https://opt-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
+arbitrum_sepolia = "https://arb-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
+base_sepolia = "https://base-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
 optimism = "https://1rpc.io/op"
+optimism_sepolia = "https://opt-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
+sepolia = "https://eth-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
 
 [etherscan]
 arbitrum = {key = "${ARBITRUM_ETHERSCAN_KEY}"}
-base-sepolia = {key = "${BASESEPOLIA_ETHERSCAN_KEY}"}
-eth-sepolia = {key = "${SEPOLIA_ETHERSCAN_KEY}", chain = "sepolia"}
-opt-sepolia = {key = "${OPTIMISM_ETHERSCAN_KEY}"}
+arbitrum_sepolia = {key = "${ARBITRUM_ETHERSCAN_KEY}"}
+base_sepolia = {key = "${BASESEPOLIA_ETHERSCAN_KEY}"}
 optimism = {key = "${OPTIMISM_ETHERSCAN_KEY}"}
+optimism_sepolia = {key = "${OPTIMISM_ETHERSCAN_KEY}"}
+sepolia = {key = "${SEPOLIA_ETHERSCAN_KEY}", chain = "sepolia"}
