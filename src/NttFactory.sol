@@ -42,6 +42,7 @@ contract NttFactory {
         uint8 consistencyLevel;
         uint256 gasLimit;
         uint256 outboundLimit;
+        string externalSalt;
     }
 
     struct PeerParams {
@@ -75,6 +76,7 @@ contract NttFactory {
      * @param newTokenName Name of the new token
      * @param newTokenSymbol Symbol of the new token
      * @param tokenAddress Address of the token
+     * @param externalSalt External salt used for deterministic deployment
      * @param newTokenInitialSupply Initial supply of the new token
      * @param outboundLimit Outbound limit for the new token
      * @param envParams Environment parameters for the deployment
@@ -90,6 +92,7 @@ contract NttFactory {
         string memory newTokenName,
         string memory newTokenSymbol,
         address tokenAddress,
+        string memory externalSalt,
         uint256 newTokenInitialSupply,
         uint256 outboundLimit,
         EnvParams memory envParams,
@@ -101,7 +104,8 @@ contract NttFactory {
 
         address owner = msg.sender;
 
-        token = (mode == IManagerBase.Mode.BURNING) ? deployToken(newTokenName, newTokenSymbol) : tokenAddress;
+        token =
+            (mode == IManagerBase.Mode.BURNING) ? deployToken(newTokenName, newTokenSymbol, externalSalt) : tokenAddress;
 
         // deploy manager
         uint16 chainId = IWormhole(envParams.wormholeCoreBridge).chainId();
@@ -116,7 +120,8 @@ contract NttFactory {
             specialRelayerAddr: envParams.specialRelayerAddr,
             consistencyLevel: 202,
             gasLimit: 500000,
-            outboundLimit: outboundLimit
+            outboundLimit: outboundLimit,
+            externalSalt: externalSalt
         });
         nttManager = deployNttManager(params, nttManagerBytecode);
 
@@ -150,8 +155,11 @@ contract NttFactory {
         return (token, nttManager, transceiver);
     }
 
-    function deployToken(string memory _name, string memory _symbol) internal returns (address) {
-        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol));
+    function deployToken(string memory _name, string memory _symbol, string memory _externalSalt)
+        internal
+        returns (address)
+    {
+        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol, _externalSalt));
 
         // Deploy token. Initially we need to have minter and owner as this factory.
         address token = CREATE3.deploy(
@@ -182,7 +190,9 @@ contract NttFactory {
         internal
         returns (address)
     {
-        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", msg.sender, address(this)));
+        // We don't want to get the same bytecode if the token is the same, using externalSalt here too
+        bytes32 implementationSalt =
+            keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
@@ -197,15 +207,14 @@ contract NttFactory {
 
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
-        // Get the same address across chains for the proxy
-        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", msg.sender, params.token));
+        // Get the same address across chains for the proxy. We can't use token address for hub and spoke
+        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", msg.sender, params.externalSalt));
 
         // Deploy deterministic nttManagerProxy
         bytes memory proxyCreationCode =
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
 
         NttManager nttManagerProxy = NttManager(CREATE3.deploy(managerSalt, proxyCreationCode, 0));
-
         // This is made here, not in constructor because only the deployer can call it
         nttManagerProxy.initialize();
 
