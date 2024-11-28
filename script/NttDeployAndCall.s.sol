@@ -62,6 +62,7 @@ contract NttDeployAndCall is Script {
             "token5",
             "TKN",
             zeroTokenAddress,
+            "random-1",
             initialSupply,
             initialSupply,
             envParams,
