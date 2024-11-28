@@ -13,3 +13,6 @@
 [submodule "lib/create3-factory"]
 	path = lib/create3-factory
 	url = https://github.com/zeframlou/create3-factory
+[submodule "lib/native-token-transfers"]
+	path = lib/native-token-transfers
+	url = https://github.com/wormhole-foundation/native-token-transfers
