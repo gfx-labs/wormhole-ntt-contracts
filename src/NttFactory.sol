@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Create2} from "lib/openzeppelin-contracts/contracts/utils/Create2.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
 
-import {NttManager} from "vendor/NttManager/NttManager.sol";
+import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
+import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
+import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
+import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
+import {ITransceiver} from "native-token-transfers/interfaces/ITransceiver.sol";
+
 import {PeerToken} from "vendor/tokens/PeerToken.sol";
-import {PausableOwnable} from "vendor/libraries/PausableOwnable.sol";
-import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
-import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
-import {INttManager} from "vendor/interfaces/INttManager.sol";
-import {ITransceiver} from "vendor/interfaces/ITransceiver.sol";
 
 interface IWormhole {
     function chainId() external view returns (uint16);
