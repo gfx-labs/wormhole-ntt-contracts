@@ -2,15 +2,18 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
+import {CREATE3} from "solmate/utils/CREATE3.sol";
+
+import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
+import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
+
 import {NttFactory} from "../src/NttFactory.sol";
 import {PeerToken} from "../vendor/tokens/PeerToken.sol";
-import {NttManager} from "../vendor/NttManager/NttManager.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {WormholeTransceiver} from "../vendor/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
-import {IManagerBase} from "../vendor/interfaces/IManagerBase.sol";
-import {Create2} from "lib/openzeppelin-contracts/contracts/utils/Create2.sol";
-import {CREATE3} from "solmate/utils/CREATE3.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockWormhole {
     uint16 private _chainId;

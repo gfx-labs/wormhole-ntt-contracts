@@ -3,9 +3,10 @@ pragma solidity ^0.8.13;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {NttFactory} from "../src/NttFactory.sol";
-import {NttManager} from "vendor/NttManager/NttManager.sol";
-import {IManagerBase} from "vendor/interfaces/IManagerBase.sol";
-import {WormholeTransceiver} from "vendor/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+
+import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
+import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 
 contract NttDeployAndCall is Script {
     function run() public payable {
