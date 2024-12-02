@@ -420,4 +420,36 @@ contract NttFactoryTest is Test {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
         NttOwner(ownerContract).setPeers(manager, transceiver, peerParams2);
     }
+
+    function test_setPeerUsingExecute() public {
+        IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
+
+        PeersLibrary.PeerParams[] memory peerParams1 = new PeersLibrary.PeerParams[](1);
+        peerParams1[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+
+        (, address manager,, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT,
+            envParams,
+            peerParams1,
+            mockManagerBytecode,
+            mockTransceiverBytecode
+        );
+
+        vm.startPrank(address(OWNER));
+        bytes4 selector = bytes4(keccak256("setPeer(uint16,bytes32,uint8,uint256)"));
+        bytes32 peerAddress = PeersLibrary.normalizeAddress(address(manager));
+        bytes memory data = abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT);
+        NttOwner(ownerContract).execute(manager, selector, data);
+        vm.stopPrank();
+
+        assertEq(INttManager(manager).getPeer(4).tokenDecimals, 4);
+        assertEq(INttManager(manager).getPeer(4).peerAddress, peerAddress);
+
+        vm.startPrank(address(0x25));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
+        NttOwner(ownerContract).execute(manager, selector, data);
+    }
 }
