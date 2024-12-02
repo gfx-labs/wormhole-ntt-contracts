@@ -415,5 +415,9 @@ contract NttFactoryTest is Test {
             INttManager.NttManagerPeer({tokenDecimals: 8, peerAddress: PeersLibrary.normalizeAddress(address(manager))});
         assertEq(INttManager(manager).getPeer(3).tokenDecimals, peer.tokenDecimals);
         assertEq(INttManager(manager).getPeer(3).peerAddress, peer.peerAddress);
+
+        vm.startPrank(address(0x25));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
+        NttOwner(ownerContract).setPeers(manager, transceiver, peerParams2);
     }
 }
