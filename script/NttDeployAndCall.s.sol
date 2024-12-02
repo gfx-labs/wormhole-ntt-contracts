@@ -3,32 +3,34 @@ pragma solidity ^0.8.13;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {NttFactory} from "../src/NttFactory.sol";
+import {PeersLibrary} from "../src/PeersLibrary.sol";
 
 import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
+import {INttFactory} from "../src/interfaces/INttFactory.sol";
 
 contract NttDeployAndCall is Script {
     function run() public payable {
-        // NttFactory.EnvParams memory envParamsBaseSepolia = NttFactory.EnvParams({
+        // INttFactory.EnvParams memory envParamsBaseSepolia = INttFactory.EnvParams({
         //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_BASE_SEPOLIA"),
         //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_BASE_SEPOLIA"),
         //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_BASE_SEPOLIA")
         // });
 
-        // NttFactory.EnvParams memory envParamsEthSepolia = NttFactory.EnvParams({
+        // INttFactory.EnvParams memory envParamsEthSepolia = INttFactory.EnvParams({
         //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ETH_SEPOLIA"),
         //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ETH_SEPOLIA"),
         //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
         // });
 
-        NttFactory.EnvParams memory envParamsArbSepolia = NttFactory.EnvParams({
+        INttFactory.EnvParams memory envParamsArbSepolia = INttFactory.EnvParams({
             wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ARB_SEPOLIA"),
             wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ARB_SEPOLIA"),
             specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ARB_SEPOLIA")
         });
 
-        // NttFactory.EnvParams memory envParamsOpSepolia = NttFactory.EnvParams({
+        // INttFactory.EnvParams memory envParamsOpSepolia = INttFactory.EnvParams({
         //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
         //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_OP_SEPOLIA"),
         //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_OP_SEPOLIA")
@@ -42,7 +44,7 @@ contract NttDeployAndCall is Script {
         deploy(envParamsArbSepolia, baseSepolia);
     }
 
-    function deploy(NttFactory.EnvParams memory envParams, uint16 peerChainId) internal {
+    function deploy(INttFactory.EnvParams memory envParams, uint16 peerChainId) internal {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address nttFactory = vm.envAddress("NTT_FACTORY");
 
@@ -50,21 +52,25 @@ contract NttDeployAndCall is Script {
         uint256 inboundLimit = 1000000000000000000000;
         uint8 decimals = 18;
 
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
         peerParams[0] =
-            NttFactory.PeerParams({peerChainId: peerChainId, decimals: decimals, inboundLimit: inboundLimit});
+            PeersLibrary.PeerParams({peerChainId: peerChainId, decimals: decimals, inboundLimit: inboundLimit});
 
         vm.startBroadcast(deployerPrivateKey);
         address zeroTokenAddress = 0x0000000000000000000000000000000000000000;
 
+        INttFactory.TokenParams memory tokenParams = INttFactory.TokenParams({
+            name: "token",
+            symbol: "TKN",
+            existingAddress: zeroTokenAddress,
+            initialSupply: initialSupply
+        });
+
         NttFactory factoryBaseSepolia = NttFactory(nttFactory);
         factoryBaseSepolia.deployNtt(
             IManagerBase.Mode.BURNING,
-            "token5",
-            "TKN",
-            zeroTokenAddress,
-            "random-1",
-            initialSupply,
+            tokenParams,
+            "salt",
             initialSupply,
             envParams,
             peerParams,
