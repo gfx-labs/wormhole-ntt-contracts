@@ -29,9 +29,6 @@ interface INttFactory {
         uint16 wormholeChainId;
         uint64 rateLimitDuration;
         bool shouldSkipRatelimiter;
-        address wormholeCoreBridge;
-        address wormholeRelayerAddr;
-        address specialRelayerAddr;
         uint8 consistencyLevel;
         uint256 gasLimit;
         uint256 outboundLimit;
@@ -63,10 +60,7 @@ interface INttFactory {
      * @param tokenParams params to deploy or use existing params
      * @param externalSalt External salt used for deterministic deployment
      * @param outboundLimit Outbound limit for the new token
-     * @param envParams Environment parameters for the deployment
      * @param peerParams Peer parameters for the deployment
-     * @param nttManagerBytecode Bytecode of the NTT manager
-     * @param nttTransceiverBytecode Bytecode of the NTT transceiver
      * @return token Address of the deployed token
      * @return nttManager Address of the deployed manager
      * @return transceiver Address of the deployed transceiver
@@ -77,9 +71,6 @@ interface INttFactory {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        EnvParams memory envParams,
-        PeersLibrary.PeerParams[] memory peerParams,
-        bytes memory nttManagerBytecode,
-        bytes memory nttTransceiverBytecode
+        PeersLibrary.PeerParams[] memory peerParams
     ) external returns (address token, address nttManager, address transceiver, address ownerContract);
 }
