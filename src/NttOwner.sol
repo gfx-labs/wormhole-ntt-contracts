@@ -12,7 +12,7 @@ import {PeersLibrary} from "./PeersLibrary.sol";
  * @notice Owner contract to provide helpers to NTT deployed contracts
  */
 contract NttOwner is Ownable {
-    constructor() Ownable(msg.sender) {}
+    constructor(address owner) Ownable(owner) {}
 
     /**
      * @notice Sets the peers for the NTT Manager and NTT Transceiver

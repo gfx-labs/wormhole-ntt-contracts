@@ -48,8 +48,7 @@ contract NttFactory is INttFactory {
 
         address owner = msg.sender;
 
-        NttOwner ownerContract = new NttOwner();
-        ownerContract.transferOwnership(owner);
+        NttOwner ownerContract = new NttOwner(owner);
 
         token = (mode == IManagerBase.Mode.BURNING)
             ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
