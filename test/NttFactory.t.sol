@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
@@ -29,11 +30,7 @@ contract MockWormhole {
         return _chainId;
     }
 
-    function publishMessage(uint32 nonce, bytes memory payload, uint8 consistencyLevel)
-        external
-        payable
-        returns (uint64 sequence)
-    {
+    function publishMessage(uint32, bytes memory, uint8) external payable returns (uint64 sequence) {
         sequence = 1;
     }
 }
@@ -396,7 +393,7 @@ contract NttFactoryTest is Test {
         PeersLibrary.PeerParams[] memory peerParams2 = new PeersLibrary.PeerParams[](1);
         peerParams2[0] = PeersLibrary.PeerParams({peerChainId: 3, decimals: 8, inboundLimit: OUTBOUND_LIMIT});
 
-        (address token, address manager, address transceiver, address ownerContract) = factory.deployNtt(
+        (, address manager, address transceiver, address ownerContract) = factory.deployNtt(
             mode,
             tokenParamsBurning,
             EXTERNAL_SALT,
@@ -451,5 +448,10 @@ contract NttFactoryTest is Test {
         vm.startPrank(address(0x25));
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
         NttOwner(ownerContract).execute(manager, selector, data);
+    }
+
+    function test_supportInterface() public view {
+        assertTrue(factory.supportsInterface(0x553eda9b)); // INttFactory
+        assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
     }
 }

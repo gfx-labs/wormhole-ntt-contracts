@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
@@ -204,5 +206,12 @@ contract NttFactory is INttFactory {
         transceiverProxy.initialize();
 
         return address(transceiverProxy);
+    }
+
+    /**
+     * @inheritdoc INttFactory
+     */
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return interfaceId == type(INttFactory).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 }

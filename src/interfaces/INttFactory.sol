@@ -3,12 +3,13 @@ pragma solidity ^0.8.13;
 
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {PeersLibrary} from "./../PeersLibrary.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title INttFactory
  * @notice Interface for the NttFactory contract that deploys cross-chain NTT tokens and their managers
  */
-interface INttFactory {
+interface INttFactory is IERC165 {
     // --- Structs ---
     struct EnvParams {
         address wormholeCoreBridge;
@@ -82,4 +83,11 @@ interface INttFactory {
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
     ) external returns (address token, address nttManager, address transceiver, address ownerContract);
+
+    /**
+     * @notice Implements ERC165 to declare support for interfaces
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return bool True if the contract implements the requested interface
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
