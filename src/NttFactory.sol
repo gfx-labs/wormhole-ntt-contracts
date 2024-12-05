@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
@@ -11,58 +13,20 @@ import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
-import {ITransceiver} from "native-token-transfers/interfaces/ITransceiver.sol";
+import {IWormhole} from "wormhole-solidity-sdk/interfaces/IWormhole.sol";
+import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
+import {INttFactory} from "./interfaces/INttFactory.sol";
+import {NttOwner} from "./NttOwner.sol";
+
+import {PeersLibrary} from "./PeersLibrary.sol";
 
 import {PeerToken} from "vendor/tokens/PeerToken.sol";
 
-interface IWormhole {
-    function chainId() external view returns (uint16);
-}
-
 /**
  * @title NttFactory
- * @notice Factory contract for deploying cross-chain NTT tokens and their managers
+ * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
  */
-contract NttFactory {
-    // --- Structs ---
-    struct EnvParams {
-        address wormholeCoreBridge;
-        address wormholeRelayerAddr;
-        address specialRelayerAddr;
-    }
-
-    struct DeploymentParams {
-        address token;
-        IManagerBase.Mode mode;
-        uint16 wormholeChainId;
-        uint64 rateLimitDuration;
-        bool shouldSkipRatelimiter;
-        address wormholeCoreBridge;
-        address wormholeRelayerAddr;
-        address specialRelayerAddr;
-        uint8 consistencyLevel;
-        uint256 gasLimit;
-        uint256 outboundLimit;
-        string externalSalt;
-    }
-
-    struct PeerParams {
-        uint16 peerChainId;
-        // bytes32 peerContract;
-        uint8 decimals;
-        uint256 inboundLimit;
-    }
-
-    // --- Events ---
-    event TokenDeployed(address indexed token, string name, string symbol);
-    event ManagerDeployed(address indexed manager, address indexed token);
-    event TransceiverDeployed(address indexed transceiver, address indexed token);
-    event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
-
-    // --- Errors ---
-    error DeploymentFailed();
-    error InvalidParameters();
-
+contract NttFactory is INttFactory {
     // --- State ---
     bytes32 public immutable VERSION;
 
@@ -71,49 +35,32 @@ contract NttFactory {
         VERSION = _version;
     }
 
-    /**
-     * @notice Deploy a new NTT token, its manager and transceiver deterministically
-     * @param mode Mode of the manager
-     * @param newTokenName Name of the new token
-     * @param newTokenSymbol Symbol of the new token
-     * @param tokenAddress Address of the token
-     * @param externalSalt External salt used for deterministic deployment
-     * @param newTokenInitialSupply Initial supply of the new token
-     * @param outboundLimit Outbound limit for the new token
-     * @param envParams Environment parameters for the deployment
-     * @param peerParams Peer parameters for the deployment
-     * @param nttManagerBytecode Bytecode of the NTT manager
-     * @param nttTransceiverBytecode Bytecode of the NTT transceiver
-     * @return token Address of the deployed token
-     * @return nttManager Address of the deployed manager
-     * @return transceiver Address of the deployed transceiver
-     */
+    /// @inheritdoc INttFactory
     function deployNtt(
         IManagerBase.Mode mode,
-        string memory newTokenName,
-        string memory newTokenSymbol,
-        address tokenAddress,
+        TokenParams memory tokenParams,
         string memory externalSalt,
-        uint256 newTokenInitialSupply,
         uint256 outboundLimit,
         EnvParams memory envParams,
-        PeerParams[] memory peerParams,
+        PeersLibrary.PeerParams[] memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
-    ) external returns (address token, address nttManager, address transceiver) {
-        if (bytes(newTokenName).length == 0 || bytes(newTokenSymbol).length == 0) revert InvalidParameters();
+    ) external returns (address token, address nttManager, address transceiver, address _ownerContract) {
+        if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) revert InvalidParameters();
 
         address owner = msg.sender;
 
-        token =
-            (mode == IManagerBase.Mode.BURNING) ? deployToken(newTokenName, newTokenSymbol, externalSalt) : tokenAddress;
+        NttOwner ownerContract = new NttOwner(owner);
+
+        token = (mode == IManagerBase.Mode.BURNING)
+            ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
+            : tokenParams.existingAddress;
 
         // deploy manager
-        uint16 chainId = IWormhole(envParams.wormholeCoreBridge).chainId();
         DeploymentParams memory params = DeploymentParams({
             token: token,
             mode: mode,
-            wormholeChainId: chainId,
+            wormholeChainId: IWormhole(envParams.wormholeCoreBridge).chainId(),
             rateLimitDuration: 86400,
             shouldSkipRatelimiter: false,
             wormholeCoreBridge: envParams.wormholeCoreBridge,
@@ -127,12 +74,15 @@ contract NttFactory {
         nttManager = deployNttManager(params, nttManagerBytecode);
 
         if (params.mode == IManagerBase.Mode.BURNING) {
-            configureTokenSettings(token, owner, newTokenInitialSupply, nttManager);
+            configureTokenSettings(token, owner, tokenParams.initialSupply, nttManager);
         }
 
         // Configure NttManager, but not ownership
         // To be able to call `configureNttTransceiver` from this factory
-        configureNttManager(nttManager, peerParams, params.outboundLimit, params.shouldSkipRatelimiter);
+        if (!params.shouldSkipRatelimiter) {
+            INttManager(nttManager).setOutboundLimit(params.outboundLimit);
+        }
+        PeersLibrary.configureNttManager(INttManager(nttManager), peerParams);
 
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
@@ -144,16 +94,17 @@ contract NttFactory {
         INttManager(nttManager).setThreshold(1);
 
         // Now transceiver can be configured from this factory
-        configureNttTransceiver(transceiver, peerParams);
+        PeersLibrary.configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
 
         // change ownership of nttManager to tokenOwner now that everything is configured
-        PausableOwnable(nttManager).transferPauserCapability(owner);
-        PausableOwnable(nttManager).transferOwnership(owner);
+        PausableOwnable(nttManager).transferPauserCapability(address(ownerContract));
+        PausableOwnable(nttManager).transferOwnership(address(ownerContract));
 
         emit ManagerDeployed(nttManager, token);
         emit TransceiverDeployed(transceiver, token);
+        emit NttOwnerDeployed(address(ownerContract), nttManager, transceiver);
 
-        return (token, nttManager, transceiver);
+        return (token, nttManager, transceiver, address(ownerContract));
     }
 
     function deployToken(string memory _name, string memory _symbol, string memory _externalSalt)
@@ -257,31 +208,10 @@ contract NttFactory {
         return address(transceiverProxy);
     }
 
-    function configureNttTransceiver(address transceiver, PeerParams[] memory peerParams) internal {
-        bytes32 normalizedTransceiverAddress = bytes32(uint256(uint160(transceiver)));
-
-        for (uint256 i = 0; i < peerParams.length; i++) {
-            WormholeTransceiver(transceiver).setWormholePeer(peerParams[i].peerChainId, normalizedTransceiverAddress);
-            WormholeTransceiver(transceiver).setIsWormholeEvmChain(peerParams[i].peerChainId, true);
-            WormholeTransceiver(transceiver).setIsWormholeRelayingEnabled(peerParams[i].peerChainId, true);
-        }
-    }
-
-    function configureNttManager(
-        address nttManager,
-        PeerParams[] memory peerParams,
-        uint256 outboundLimit,
-        bool shouldSkipRateLimiter
-    ) internal {
-        if (!shouldSkipRateLimiter) {
-            INttManager(nttManager).setOutboundLimit(outboundLimit);
-        }
-
-        bytes32 normalizedAddress = bytes32(uint256(uint160(nttManager)));
-        for (uint256 i = 0; i < peerParams.length; i++) {
-            INttManager(nttManager).setPeer(
-                peerParams[i].peerChainId, normalizedAddress, peerParams[i].decimals, peerParams[i].inboundLimit
-            );
-        }
+    /**
+     * @inheritdoc INttFactory
+     */
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return interfaceId == type(INttFactory).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 }

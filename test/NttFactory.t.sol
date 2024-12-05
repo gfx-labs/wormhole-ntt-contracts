@@ -5,14 +5,18 @@ import "forge-std/Test.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {CREATE3} from "solmate/utils/CREATE3.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
+import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 
 import {NttFactory} from "../src/NttFactory.sol";
+import {INttFactory} from "../src/interfaces/INttFactory.sol";
+import {PeersLibrary} from "../src/PeersLibrary.sol";
+import {NttOwner} from "../src/NttOwner.sol";
+
 import {PeerToken} from "../vendor/tokens/PeerToken.sol";
 
 contract MockWormhole {
@@ -26,11 +30,7 @@ contract MockWormhole {
         return _chainId;
     }
 
-    function publishMessage(uint32 nonce, bytes memory payload, uint8 consistencyLevel)
-        external
-        payable
-        returns (uint64 sequence)
-    {
+    function publishMessage(uint32, bytes memory, uint8) external payable returns (uint64 sequence) {
         sequence = 1;
     }
 }
@@ -73,9 +73,25 @@ contract NttFactoryTest is Test {
 
     MockERC20 public existing_token;
 
+    // Mock bytecode for manager and transceiver
+    bytes constant mockManagerBytecode = type(NttManager).creationCode;
+    bytes constant mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+
+    // Setup environment parameters
+    INttFactory.EnvParams envParams;
+
+    INttFactory.TokenParams public tokenParamsBurning;
+    INttFactory.TokenParams public tokenParamsLocking;
+
     function setUp() public {
         // Deploy mock wormhole
         wormhole = new MockWormhole(CHAIN_ID);
+
+        envParams = INttFactory.EnvParams({
+            wormholeCoreBridge: address(wormhole),
+            wormholeRelayerAddr: address(0x2),
+            specialRelayerAddr: address(0x3)
+        });
 
         // Deploy factory
         factory = new NttFactory(VERSION);
@@ -83,34 +99,33 @@ contract NttFactoryTest is Test {
         existing_token = new MockERC20(TOKEN_NAME, TOKEN_SYMBOL, 18);
         MockERC20(existing_token).transferOwnership(EXISTING_TOKEN_OWNER);
 
+        tokenParamsBurning = INttFactory.TokenParams({
+            name: TOKEN_NAME,
+            symbol: TOKEN_SYMBOL,
+            existingAddress: address(0),
+            initialSupply: INITIAL_SUPPLY
+        });
+        tokenParamsLocking = INttFactory.TokenParams({
+            name: TOKEN_NAME,
+            symbol: TOKEN_SYMBOL,
+            existingAddress: address(existing_token),
+            initialSupply: INITIAL_SUPPLY
+        });
+
         // Setup owner
         vm.startPrank(OWNER);
     }
 
-    function test_DeployNtt_LOCKINGMode() public {
-        // Setup environment parameters
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
+    function test_DeployNtt_BurningMode() public {
         // Setup peer parameters
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
-        peerParams[0] = NttFactory.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
-
-        // Mock bytecode for manager and transceiver
-        bytes memory mockManagerBytecode = type(NttManager).creationCode;
-        bytes memory mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
+        peerParams[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
         // Deploy NTT system
-        (address token, address nttManager, address transceiver) = factory.deployNtt(
+        (address token, address nttManager, address transceiver, address ownerContract) = factory.deployNtt(
             IManagerBase.Mode.BURNING,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(0), // Not used in BURNING mode
+            tokenParamsBurning,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -129,9 +144,7 @@ contract NttFactoryTest is Test {
         // Verify manager deployment
         NttManager deployedManager = NttManager(nttManager);
         assertEq(address(deployedManager.token()), token);
-        // assertEq(address(deployedManager..transceiver()), transceiver);
-        assertEq(deployedManager.owner(), OWNER);
-        // assertEq(deployedManager.outboundLimit(), OUTBOUND_LIMIT);
+        assertEq(deployedManager.owner(), ownerContract);
 
         // Verify transceiver deployment
         WormholeTransceiver deployedTransceiver = WormholeTransceiver(transceiver);
@@ -141,32 +154,15 @@ contract NttFactoryTest is Test {
     }
 
     function test_DeployNtt_LockingMode() public {
-        // First deploy a token separately
-        PeerToken existingToken = new PeerToken(TOKEN_NAME, TOKEN_SYMBOL, OWNER, OWNER);
-
-        // Setup environment parameters
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
         // Setup peer parameters
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
-        peerParams[0] = NttFactory.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
-
-        // Mock bytecode for manager and transceiver
-        bytes memory mockManagerBytecode = type(NttManager).creationCode;
-        bytes memory mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
+        peerParams[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
         // Deploy NTT system
-        (address token, address nttManager, address transceiver) = factory.deployNtt(
+        (address token, address nttManager, address transceiver, address ownerContract) = factory.deployNtt(
             IManagerBase.Mode.LOCKING,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(existingToken),
+            tokenParamsLocking,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY, // Not used in LOCKING mode
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -175,13 +171,13 @@ contract NttFactoryTest is Test {
         );
 
         // Verify token is the existing one
-        assertEq(token, address(existingToken));
+        assertEq(token, address(existing_token));
 
         // Verify manager deployment
         NttManager deployedManager = NttManager(nttManager);
         assertEq(address(deployedManager.token()), token);
         //assertEq(address(deployedManager.transceiver()), transceiver);
-        assertEq(deployedManager.owner(), OWNER);
+        assertEq(deployedManager.owner(), ownerContract);
         //assertEq(deployedManager.outboundLimit(), OUTBOUND_LIMIT);
 
         // Verify transceiver deployment
@@ -192,24 +188,22 @@ contract NttFactoryTest is Test {
     }
 
     function test_RevertInvalidParameters() public {
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
         bytes memory mockBytecode = "";
 
+        INttFactory.TokenParams memory tokenParamsEmptyName = INttFactory.TokenParams({
+            name: "",
+            symbol: TOKEN_SYMBOL,
+            existingAddress: address(0),
+            initialSupply: INITIAL_SUPPLY
+        });
+
         // Test empty token name
-        vm.expectRevert(NttFactory.InvalidParameters.selector);
+        vm.expectRevert(INttFactory.InvalidParameters.selector);
         factory.deployNtt(
             IManagerBase.Mode.BURNING,
-            "",
-            TOKEN_SYMBOL,
-            address(0),
+            tokenParamsEmptyName,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -218,14 +212,18 @@ contract NttFactoryTest is Test {
         );
 
         // Test empty token symbol
-        vm.expectRevert(NttFactory.InvalidParameters.selector);
+        INttFactory.TokenParams memory tokenParamsEmptySymbol = INttFactory.TokenParams({
+            name: TOKEN_NAME,
+            symbol: "",
+            existingAddress: address(0),
+            initialSupply: INITIAL_SUPPLY
+        });
+
+        vm.expectRevert(INttFactory.InvalidParameters.selector);
         factory.deployNtt(
             IManagerBase.Mode.BURNING,
-            TOKEN_NAME,
-            "",
-            address(0),
+            tokenParamsEmptySymbol,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -237,27 +235,14 @@ contract NttFactoryTest is Test {
     function test_DeploymentDeterminismBurning() public {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
-        // Setup parameters
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
-        peerParams[0] = NttFactory.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
-
-        bytes memory mockManagerBytecode = type(NttManager).creationCode;
-        bytes memory mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
+        peerParams[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1) = factory.deployNtt(
+        (address token1, address manager1, address transceiver1,) = factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(0),
+            tokenParamsBurning,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -268,11 +253,8 @@ contract NttFactoryTest is Test {
         vm.expectRevert(); // Should revert on second deployment with same parameters
         factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(0),
+            tokenParamsBurning,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -281,13 +263,10 @@ contract NttFactoryTest is Test {
         );
 
         // should not fail with a different external salt
-        (address token2, address manager2, address transceiver2) = factory.deployNtt(
+        (address token2, address manager2, address transceiver2,) = factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(0),
+            tokenParamsBurning,
             "DIFFERENT_SALT",
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -309,27 +288,14 @@ contract NttFactoryTest is Test {
     function test_DeploymentDeterminismLocking() public {
         IManagerBase.Mode mode = IManagerBase.Mode.LOCKING;
 
-        // Setup parameters
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
-        peerParams[0] = NttFactory.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
-
-        bytes memory mockManagerBytecode = type(NttManager).creationCode;
-        bytes memory mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
+        peerParams[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1) = factory.deployNtt(
+        (address token1, address manager1, address transceiver1,) = factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(existing_token),
+            tokenParamsLocking,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -340,11 +306,8 @@ contract NttFactoryTest is Test {
         vm.expectRevert(); // Should revert on second deployment with same parameters
         factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(existing_token),
+            tokenParamsLocking,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -353,13 +316,10 @@ contract NttFactoryTest is Test {
         );
 
         // should not fail with a different external salt
-        (address token2, address manager2, address transceiver2) = factory.deployNtt(
+        (address token2, address manager2, address transceiver2,) = factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(existing_token),
+            tokenParamsLocking,
             "DIFFERENT_SALT",
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -381,27 +341,14 @@ contract NttFactoryTest is Test {
     function test_OwnershipAfterDeployNttBurning() public {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
-        // Setup parameters
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
-        peerParams[0] = NttFactory.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
-
-        bytes memory mockManagerBytecode = type(NttManager).creationCode;
-        bytes memory mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
+        peerParams[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1) = factory.deployNtt(
+        (address token1, address manager1, address transceiver1, address ownerContract) = factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(existing_token),
+            tokenParamsLocking,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -410,34 +357,21 @@ contract NttFactoryTest is Test {
         );
 
         assertEq(Ownable(token1).owner(), OWNER);
-        assertEq(Ownable(manager1).owner(), OWNER);
-        assertEq(Ownable(transceiver1).owner(), OWNER);
+        assertEq(Ownable(manager1).owner(), ownerContract);
+        assertEq(Ownable(transceiver1).owner(), ownerContract);
     }
 
     function test_OwnershipAfterDeployNttLocking() public {
         IManagerBase.Mode mode = IManagerBase.Mode.LOCKING;
 
-        // Setup parameters
-        NttFactory.EnvParams memory envParams = NttFactory.EnvParams({
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
-        });
-
-        NttFactory.PeerParams[] memory peerParams = new NttFactory.PeerParams[](1);
-        peerParams[0] = NttFactory.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
-
-        bytes memory mockManagerBytecode = type(NttManager).creationCode;
-        bytes memory mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
+        PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
+        peerParams[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1) = factory.deployNtt(
+        (address token1, address manager1, address transceiver1, address ownerContract) = factory.deployNtt(
             mode,
-            TOKEN_NAME,
-            TOKEN_SYMBOL,
-            address(existing_token),
+            tokenParamsLocking,
             EXTERNAL_SALT,
-            INITIAL_SUPPLY,
             OUTBOUND_LIMIT,
             envParams,
             peerParams,
@@ -446,7 +380,78 @@ contract NttFactoryTest is Test {
         );
 
         assertEq(Ownable(token1).owner(), EXISTING_TOKEN_OWNER);
-        assertEq(Ownable(manager1).owner(), OWNER);
-        assertEq(Ownable(transceiver1).owner(), OWNER);
+        assertEq(Ownable(manager1).owner(), ownerContract);
+        assertEq(Ownable(transceiver1).owner(), ownerContract);
+    }
+
+    function test_setPeersAfterDeploy() public {
+        IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
+
+        PeersLibrary.PeerParams[] memory peerParams1 = new PeersLibrary.PeerParams[](1);
+        peerParams1[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+
+        PeersLibrary.PeerParams[] memory peerParams2 = new PeersLibrary.PeerParams[](1);
+        peerParams2[0] = PeersLibrary.PeerParams({peerChainId: 3, decimals: 8, inboundLimit: OUTBOUND_LIMIT});
+
+        (, address manager, address transceiver, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT,
+            envParams,
+            peerParams1,
+            mockManagerBytecode,
+            mockTransceiverBytecode
+        );
+
+        vm.startPrank(address(OWNER));
+        NttOwner(ownerContract).setPeers(manager, transceiver, peerParams2);
+        vm.stopPrank();
+
+        INttManager.NttManagerPeer memory peer =
+            INttManager.NttManagerPeer({tokenDecimals: 8, peerAddress: PeersLibrary.normalizeAddress(address(manager))});
+        assertEq(INttManager(manager).getPeer(3).tokenDecimals, peer.tokenDecimals);
+        assertEq(INttManager(manager).getPeer(3).peerAddress, peer.peerAddress);
+
+        vm.startPrank(address(0x25));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
+        NttOwner(ownerContract).setPeers(manager, transceiver, peerParams2);
+    }
+
+    function test_setPeerUsingExecute() public {
+        IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
+
+        PeersLibrary.PeerParams[] memory peerParams1 = new PeersLibrary.PeerParams[](1);
+        peerParams1[0] = PeersLibrary.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+
+        (, address manager,, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT,
+            envParams,
+            peerParams1,
+            mockManagerBytecode,
+            mockTransceiverBytecode
+        );
+
+        vm.startPrank(address(OWNER));
+        bytes4 selector = bytes4(keccak256("setPeer(uint16,bytes32,uint8,uint256)"));
+        bytes32 peerAddress = PeersLibrary.normalizeAddress(address(manager));
+        bytes memory data = abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT);
+        NttOwner(ownerContract).execute(manager, selector, data);
+        vm.stopPrank();
+
+        assertEq(INttManager(manager).getPeer(4).tokenDecimals, 4);
+        assertEq(INttManager(manager).getPeer(4).peerAddress, peerAddress);
+
+        vm.startPrank(address(0x25));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
+        NttOwner(ownerContract).execute(manager, selector, data);
+    }
+
+    function test_supportInterface() public view {
+        assertTrue(factory.supportsInterface(0x553eda9b)); // INttFactory
+        assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
     }
 }
