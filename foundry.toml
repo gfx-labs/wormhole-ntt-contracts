@@ -1,5 +1,8 @@
 [profile.default]
+auto_detect_solc = true
+cbor_metadata = true
 out = "out"
+solc = "0.8.22"
 src = "src"
 viaIR = true
 
