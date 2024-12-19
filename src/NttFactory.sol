@@ -28,7 +28,17 @@ import {PeerToken} from "vendor/tokens/PeerToken.sol";
  */
 contract NttFactory is INttFactory {
     // --- State ---
+
+    /// @notice Contract version for upgrade tracking
+    /// @dev Should be incremented on each upgrade
     bytes32 public constant VERSION = "0.0.70";
+
+    /// @notice Default values used for manager and transceiver deploy
+    /// @dev Same default values as used on the cli
+    bool public constant SHOULD_SKIP_RATE_LIMITER = false;
+    uint64 public constant RATE_LIMIT_DURATION = 24 hours;
+    uint256 public constant GAS_LIMIT = 500000;
+    uint8 public constant CONSISTENCY_LEVEL = 202;
 
     constructor() {}
 
@@ -58,13 +68,13 @@ contract NttFactory is INttFactory {
             token: token,
             mode: mode,
             wormholeChainId: IWormhole(envParams.wormholeCoreBridge).chainId(),
-            rateLimitDuration: 86400,
-            shouldSkipRatelimiter: false,
+            rateLimitDuration: RATE_LIMIT_DURATION,
+            shouldSkipRatelimiter: SHOULD_SKIP_RATE_LIMITER,
             wormholeCoreBridge: envParams.wormholeCoreBridge,
             wormholeRelayerAddr: envParams.wormholeRelayerAddr,
             specialRelayerAddr: envParams.specialRelayerAddr,
-            consistencyLevel: 202,
-            gasLimit: 500000,
+            consistencyLevel: CONSISTENCY_LEVEL,
+            gasLimit: GAS_LIMIT,
             outboundLimit: outboundLimit,
             externalSalt: externalSalt
         });
