@@ -9,11 +9,10 @@ contract NttFactoryDeploy is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
-        bytes32 VERSION = keccak256(abi.encodePacked(vm.envString("VERSION")));
-        bytes32 salt = keccak256(abi.encodePacked(deployer, VERSION));
+        bytes32 salt = keccak256(abi.encodePacked(deployer));
 
         vm.startBroadcast(deployerPrivateKey);
-        NttFactory factory = new NttFactory{salt: salt}(VERSION);
+        NttFactory factory = new NttFactory{salt: salt}();
         vm.stopBroadcast();
         console2.log("Factory deployed to:", address(factory));
     }

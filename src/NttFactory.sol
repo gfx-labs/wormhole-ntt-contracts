@@ -28,12 +28,9 @@ import {PeerToken} from "vendor/tokens/PeerToken.sol";
  */
 contract NttFactory is INttFactory {
     // --- State ---
-    bytes32 public immutable VERSION;
+    bytes32 public constant VERSION = "0.0.70";
 
-    constructor(bytes32 _version) {
-        if (_version == bytes32(0)) revert InvalidParameters();
-        VERSION = _version;
-    }
+    constructor() {}
 
     /// @inheritdoc INttFactory
     function deployNtt(
