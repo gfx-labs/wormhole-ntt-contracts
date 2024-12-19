@@ -103,9 +103,11 @@ contract NttFactory is INttFactory {
         // Now transceiver can be configured from this factory
         PeersLibrary.configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
 
-        // change ownership of nttManager to tokenOwner now that everything is configured
-        PausableOwnable(nttManager).transferPauserCapability(address(ownerContract));
+        // change ownership and pauser capability of nttManager and transceiver
+        // to owner contract now that everything is configured
         PausableOwnable(nttManager).transferOwnership(address(ownerContract));
+        PausableOwnable(nttManager).transferPauserCapability(address(ownerContract));
+        PausableOwnable(transceiver).transferPauserCapability(address(ownerContract));
 
         emit ManagerDeployed(nttManager, token);
         emit TransceiverDeployed(transceiver, token);
