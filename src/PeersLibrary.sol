@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-
-pragma solidity ^0.8.13;
+pragma solidity 0.8.22;
 
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
