@@ -52,7 +52,7 @@ contract NttFactory is INttFactory {
         PeersLibrary.PeerParams[] memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
-    ) external returns (address token, address nttManager, address transceiver, address _ownerContract) {
+    ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) revert InvalidParameters();
 
         address owner = msg.sender;
@@ -114,29 +114,27 @@ contract NttFactory is INttFactory {
         return (token, nttManager, transceiver, address(ownerContract));
     }
 
-    function deployToken(string memory _name, string memory _symbol, string memory _externalSalt)
+    function deployToken(string memory name, string memory symbol, string memory externalSalt)
         internal
         returns (address)
     {
-        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, _name, _symbol, _externalSalt));
+        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, name, symbol, externalSalt));
 
         // Deploy token. Initially we need to have minter and owner as this factory.
         address token = CREATE3.deploy(
             tokenSalt,
-            abi.encodePacked(type(PeerToken).creationCode, abi.encode(_name, _symbol, address(this), address(this))),
+            abi.encodePacked(type(PeerToken).creationCode, abi.encode(name, symbol, address(this), address(this))),
             0
         );
 
-        emit TokenDeployed(token, _name, _symbol);
+        emit TokenDeployed(token, name, symbol);
 
         return token;
     }
 
-    function configureTokenSettings(address token, address owner, uint256 _initialSupply, address nttManager)
-        internal
-    {
+    function configureTokenSettings(address token, address owner, uint256 initialSupply, address nttManager) internal {
         // caller nttFactory
-        PeerToken(token).mint(owner, _initialSupply);
+        PeerToken(token).mint(owner, initialSupply);
 
         // move minter from factory to nttManager
         PeerToken(token).setMinter(nttManager);
