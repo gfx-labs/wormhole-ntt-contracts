@@ -135,8 +135,9 @@ contract NttFactory is INttFactory {
     }
 
     function configureTokenSettings(address token, address owner, uint256 initialSupply, address nttManager) internal {
-        // caller nttFactory
-        PeerToken(token).mint(owner, initialSupply);
+        if (initialSupply > 0) {
+            PeerToken(token).mint(owner, initialSupply);
+        }
 
         // move minter from factory to nttManager
         PeerToken(token).setMinter(nttManager);
