@@ -40,16 +40,16 @@ contract NttFactory is INttFactory {
     uint256 public constant GAS_LIMIT = 500000;
     uint8 public constant CONSISTENCY_LEVEL = 202;
 
-    uint16 immutable whChainId;
+    uint16 immutable wormholeChainId;
     address immutable wormholeCoreBridge;
     address immutable wormholeRelayer;
     address immutable specialRelayer;
 
-    constructor(ConstructorParams memory params) {
-        whChainId = params.whChainId;
-        wormholeCoreBridge = params.wormholeCoreBridge;
-        wormholeRelayer = params.wormholeRelayer;
-        specialRelayer = params.specialRelayer;
+    constructor(address whCoreBridge, address whRelayer, address whSpecialRelayer, uint16 whChainId) {
+        wormholeChainId = whChainId;
+        wormholeCoreBridge = whCoreBridge;
+        wormholeRelayer = whRelayer;
+        specialRelayer = whSpecialRelayer;
     }
 
     /// @inheritdoc INttFactory
@@ -150,7 +150,7 @@ contract NttFactory is INttFactory {
 
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
-            abi.encode(params.token, params.mode, whChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
+            abi.encode(params.token, params.mode, wormholeChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
         );
 
         address implementation = Create2.deploy(0, implementationSalt, bytecode);

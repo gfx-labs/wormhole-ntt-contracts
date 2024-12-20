@@ -11,13 +11,6 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
  */
 interface INttFactory is IERC165 {
     // --- Structs ---
-    struct ConstructorParams {
-        uint16 whChainId;
-        address wormholeCoreBridge;
-        address wormholeRelayer;
-        address specialRelayer;
-    }
-
     struct TokenParams {
         string name;
         string symbol;

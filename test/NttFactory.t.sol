@@ -58,7 +58,6 @@ contract MockERC20 is ERC20, Ownable {
 contract NttFactoryTest is Test {
     NttFactory public factory;
     MockWormhole public wormhole;
-    INttFactory.ConstructorParams constructorParams;
 
     address constant OWNER = address(0x1);
     address constant EXISTING_TOKEN_OWNER = address(0xA);
@@ -84,15 +83,8 @@ contract NttFactoryTest is Test {
         // Deploy mock wormhole
         wormhole = new MockWormhole(CHAIN_ID);
 
-        constructorParams = INttFactory.ConstructorParams({
-            whChainId: wormhole.chainId(),
-            wormholeCoreBridge: address(wormhole),
-            wormholeRelayer: address(0x2),
-            specialRelayer: address(0x3)
-        });
-
         // Deploy factory
-        factory = new NttFactory(constructorParams);
+        factory = new NttFactory(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
 
         existing_token = new MockERC20(TOKEN_NAME, TOKEN_SYMBOL, 18);
         MockERC20(existing_token).transferOwnership(EXISTING_TOKEN_OWNER);

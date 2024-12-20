@@ -13,15 +13,13 @@ contract NttFactoryDeploy is Script {
 
         bytes32 salt = keccak256(abi.encodePacked(deployer));
 
-        INttFactory.ConstructorParams memory constructorParams = INttFactory.ConstructorParams({
-            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE"),
-            wormholeRelayer: vm.envAddress("WORMHOLE_RELAYER"),
-            specialRelayer: vm.envAddress("SPECIAL_RELAYER"),
-            whChainId: IWormhole(vm.envAddress("WORMHOLE_CORE_BRIDGE")).chainId()
-        });
+        address wormholeCoreBridge = vm.envAddress("WORMHOLE_CORE_BRIDGE");
+        address wormholeRelayer = vm.envAddress("WORMHOLE_RELAYER");
+        address specialRelayer = vm.envAddress("SPECIAL_RELAYER");
+        uint16 whChainId = IWormhole(wormholeCoreBridge).chainId();
 
         vm.startBroadcast(deployerPrivateKey);
-        NttFactory factory = new NttFactory{salt: salt}(constructorParams);
+        NttFactory factory = new NttFactory{salt: salt}(wormholeCoreBridge, wormholeRelayer, specialRelayer, whChainId);
         vm.stopBroadcast();
         console2.log("Factory deployed to:", address(factory));
     }

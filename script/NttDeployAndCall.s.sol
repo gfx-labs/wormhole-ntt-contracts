@@ -11,37 +11,8 @@ import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttFactory} from "../src/interfaces/INttFactory.sol";
 
 contract NttDeployAndCall is Script {
-    function run() public payable {
-        // INttFactory.EnvParams memory envParamsBaseSepolia = INttFactory.EnvParams({
-        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_BASE_SEPOLIA"),
-        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_BASE_SEPOLIA"),
-        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_BASE_SEPOLIA")
-        // });
-
-        // INttFactory.EnvParams memory envParamsEthSepolia = INttFactory.EnvParams({
-        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ETH_SEPOLIA"),
-        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ETH_SEPOLIA"),
-        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
-        // });
-
-        // INttFactory.EnvParams memory envParamsArbSepolia = INttFactory.EnvParams({
-        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ARB_SEPOLIA"),
-        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ARB_SEPOLIA"),
-        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ARB_SEPOLIA")
-        // });
-
-        // INttFactory.EnvParams memory envParamsOpSepolia = INttFactory.EnvParams({
-        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
-        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_OP_SEPOLIA"),
-        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_OP_SEPOLIA")
-        // });
-
-        // uint16 sepolia = 10002;
-        uint16 baseSepolia = 10004;
-        //uint16 arbSepolia = 10003;
-
-        // deploy(envParamsBaseSepolia, sepolia);
-        deploy(baseSepolia);
+    function run(uint16 whHomeChainId) public payable {
+        deploy(whHomeChainId);
     }
 
     function deploy(uint16 peerChainId) internal {
