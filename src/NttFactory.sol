@@ -45,11 +45,47 @@ contract NttFactory is INttFactory {
     address immutable wormholeRelayer;
     address immutable specialRelayer;
 
+    /// @notice Deployer address to restrict the call to initializeBytecode
+    address immutable deployer;
+
+    bytes nttManagerBytecode;
+    bytes nttTransceiverBytecode;
+
+    modifier onlyDeployer() {
+        if (msg.sender != deployer) {
+            revert NotDeployer();
+        }
+        _;
+    }
+
     constructor(address whCoreBridge, address whRelayer, address whSpecialRelayer, uint16 whChainId) {
         wormholeChainId = whChainId;
         wormholeCoreBridge = whCoreBridge;
         wormholeRelayer = whRelayer;
         specialRelayer = whSpecialRelayer;
+        deployer = msg.sender;
+    }
+
+    /**
+     * @notice Initialize bytecode to be used on deploy of NTT contracts
+     * @param managerBytecode creationCode for the manager
+     * @param transceiverBytecode creationCode for the transceiver
+     */
+    function initializeBytecode(bytes calldata managerBytecode, bytes calldata transceiverBytecode)
+        external
+        onlyDeployer
+    {
+        if (managerBytecode.length == 0 || transceiverBytecode.length == 0) {
+            revert InvalidBytecodes();
+        }
+        if (nttManagerBytecode.length != 0 && nttTransceiverBytecode.length != 0) {
+            revert BytescodesAlreadySet();
+        }
+
+        nttManagerBytecode = managerBytecode;
+        nttTransceiverBytecode = transceiverBytecode;
+
+        emit BytecodesInitialized(keccak256(managerBytecode), keccak256(transceiverBytecode));
     }
 
     /// @inheritdoc INttFactory
@@ -58,9 +94,7 @@ contract NttFactory is INttFactory {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersLibrary.PeerParams[] memory peerParams,
-        bytes memory nttManagerBytecode,
-        bytes memory nttTransceiverBytecode
+        PeersLibrary.PeerParams[] memory peerParams
     ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) revert InvalidParameters();
 
@@ -75,7 +109,7 @@ contract NttFactory is INttFactory {
         // deploy manager
         DeploymentParams memory params =
             DeploymentParams({token: token, mode: mode, outboundLimit: outboundLimit, externalSalt: externalSalt});
-        nttManager = deployNttManager(params, nttManagerBytecode);
+        nttManager = deployNttManager(params);
 
         if (params.mode == IManagerBase.Mode.BURNING) {
             configureTokenSettings(token, owner, tokenParams.initialSupply, nttManager);
@@ -89,7 +123,7 @@ contract NttFactory is INttFactory {
         PeersLibrary.configureNttManager(INttManager(nttManager), peerParams);
 
         // Deploy Wormhole Transceiver.
-        transceiver = deployWormholeTransceiver(nttManager, nttTransceiverBytecode);
+        transceiver = deployWormholeTransceiver(nttManager);
 
         // with the transceiver deployed, we are able to set it
         IManagerBase(nttManager).setTransceiver(transceiver);
@@ -140,10 +174,7 @@ contract NttFactory is INttFactory {
         Ownable(token).transferOwnership(owner);
     }
 
-    function deployNttManager(DeploymentParams memory params, bytes memory nttManagerBytecode)
-        internal
-        returns (address)
-    {
+    function deployNttManager(DeploymentParams memory params) internal returns (address) {
         // We don't want to get the same bytecode if the token is the same, using externalSalt here too
         bytes32 implementationSalt =
             keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
@@ -170,10 +201,7 @@ contract NttFactory is INttFactory {
         return address(nttManagerProxy);
     }
 
-    function deployWormholeTransceiver(address nttManager, bytes memory nttTransceiverBytecode)
-        internal
-        returns (address)
-    {
+    function deployWormholeTransceiver(address nttManager) internal returns (address) {
         bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(

@@ -31,9 +31,12 @@ interface INttFactory is IERC165 {
     event TransceiverDeployed(address indexed transceiver, address indexed token);
     event NttOwnerDeployed(address indexed ownerContract, address indexed manager, address indexed transceiver);
     event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
+    event BytecodesInitialized(bytes32 managerBytecode, bytes32 transceiverBytecode);
 
     // --- Errors ---
-    error DeploymentFailed();
+    error NotDeployer();
+    error InvalidBytecodes();
+    error BytescodesAlreadySet();
     error InvalidParameters();
 
     // --- Functions ---
@@ -51,8 +54,6 @@ interface INttFactory is IERC165 {
      * @param externalSalt External salt used for deterministic deployment
      * @param outboundLimit Outbound limit for the new token
      * @param peerParams Peer parameters for the deployment
-     * @param nttManagerBytecode Bytecode of the NTT manager
-     * @param nttTransceiverBytecode Bytecode of the NTT transceiver
      * @return token Address of the deployed token
      * @return nttManager Address of the deployed manager
      * @return transceiver Address of the deployed transceiver
@@ -63,9 +64,7 @@ interface INttFactory is IERC165 {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersLibrary.PeerParams[] memory peerParams,
-        bytes memory nttManagerBytecode,
-        bytes memory nttTransceiverBytecode
+        PeersLibrary.PeerParams[] memory peerParams
     ) external returns (address token, address nttManager, address transceiver, address ownerContract);
 
     /**
