@@ -37,6 +37,7 @@ interface INttFactory is IERC165 {
     error NotDeployer();
     error InvalidBytecodes();
     error BytescodesAlreadySet();
+    error BytecodesNotInitialized();
     error InvalidParameters();
 
     // --- Functions ---

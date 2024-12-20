@@ -174,7 +174,6 @@ contract NttFactoryTest is Test {
 
     function test_RevertInvalidParameters() public {
         PeersLibrary.PeerParams[] memory peerParams = new PeersLibrary.PeerParams[](1);
-        bytes memory mockBytecode = "";
 
         INttFactory.TokenParams memory tokenParamsEmptyName = INttFactory.TokenParams({
             name: "",

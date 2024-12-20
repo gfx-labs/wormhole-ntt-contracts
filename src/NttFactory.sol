@@ -8,9 +8,8 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
 
-import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
+import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
-import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 import {IWormhole} from "wormhole-solidity-sdk/interfaces/IWormhole.sol";
@@ -40,16 +39,16 @@ contract NttFactory is INttFactory {
     uint256 public constant GAS_LIMIT = 500000;
     uint8 public constant CONSISTENCY_LEVEL = 202;
 
-    uint16 immutable wormholeChainId;
-    address immutable wormholeCoreBridge;
-    address immutable wormholeRelayer;
-    address immutable specialRelayer;
+    uint16 public immutable wormholeChainId;
+    address public immutable wormholeCoreBridge;
+    address public immutable wormholeRelayer;
+    address public immutable specialRelayer;
 
     /// @notice Deployer address to restrict the call to initializeBytecode
-    address immutable deployer;
+    address public immutable deployer;
 
-    bytes nttManagerBytecode;
-    bytes nttTransceiverBytecode;
+    bytes public nttManagerBytecode;
+    bytes public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
         if (msg.sender != deployer) {
@@ -98,6 +97,9 @@ contract NttFactory is INttFactory {
     ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) revert InvalidParameters();
 
+        if (nttManagerBytecode.length == 0 || nttTransceiverBytecode.length == 0) {
+            revert BytecodesNotInitialized();
+        }
         address owner = msg.sender;
 
         NttOwner ownerContract = new NttOwner(owner);
@@ -174,6 +176,18 @@ contract NttFactory is INttFactory {
         Ownable(token).transferOwnership(owner);
     }
 
+    function deployAndInitializeProxy(address implementation, bytes32 salt) internal returns (address) {
+        // Deploy deterministic proxy
+        bytes memory proxyCreationCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
+
+        address proxy = CREATE3.deploy(salt, proxyCreationCode, 0);
+
+        Implementation(proxy).initialize();
+
+        return proxy;
+    }
+
     function deployNttManager(DeploymentParams memory params) internal returns (address) {
         // We don't want to get the same bytecode if the token is the same, using externalSalt here too
         bytes32 implementationSalt =
@@ -189,16 +203,7 @@ contract NttFactory is INttFactory {
         // Get the same address across chains for the proxy. We can't use token address for hub and spoke
         bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", msg.sender, params.externalSalt));
 
-        // Deploy deterministic nttManagerProxy
-        bytes memory proxyCreationCode =
-            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
-
-        NttManager nttManagerProxy = NttManager(CREATE3.deploy(managerSalt, proxyCreationCode, 0));
-
-        // This is made here, not in constructor because only the deployer can call it
-        nttManagerProxy.initialize();
-
-        return address(nttManagerProxy);
+        return deployAndInitializeProxy(implementation, managerSalt);
     }
 
     function deployWormholeTransceiver(address nttManager) internal returns (address) {
@@ -213,16 +218,7 @@ contract NttFactory is INttFactory {
         // Get the same address across chains for the proxy
         bytes32 transceiverSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER", msg.sender, nttManager));
 
-        // Deploy deterministic nttTransceiverProxy
-        bytes memory proxyCreationCode =
-            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
-
-        WormholeTransceiver transceiverProxy =
-            WormholeTransceiver(CREATE3.deploy(transceiverSalt, proxyCreationCode, 0));
-
-        transceiverProxy.initialize();
-
-        return address(transceiverProxy);
+        return deployAndInitializeProxy(implementation, transceiverSalt);
     }
 
     /**
