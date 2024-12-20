@@ -105,8 +105,6 @@ contract NttFactoryTest is Test {
             existingAddress: address(existing_token),
             initialSupply: INITIAL_SUPPLY
         });
-
-        // Setup owner
     }
 
     function test_DeployNtt_BurningMode() public {
@@ -344,6 +342,7 @@ contract NttFactoryTest is Test {
     function test_initializeManagerBytecode() public {
         address notDeployer = address(0x31);
 
+        vm.startPrank(OWNER);
         NttFactory factory1 = new NttFactory(OWNER);
         vm.stopPrank(); // Stop prank from owner
 
@@ -367,6 +366,7 @@ contract NttFactoryTest is Test {
     function test_initializeTransceiverBytecode() public {
         address notDeployer = address(0x31);
 
+        vm.startPrank(OWNER);
         NttFactory factory1 = new NttFactory(OWNER);
         vm.stopPrank(); // Stop prank from owner
 
@@ -389,21 +389,22 @@ contract NttFactoryTest is Test {
 
     function test_initializeWormholeConfig() public {
         address notDeployer = address(0x31);
+        uint16 chainId = wormhole.chainId();
 
+        vm.startPrank(OWNER);
         NttFactory factory1 = new NttFactory(OWNER);
         vm.stopPrank(); // Stop prank from owner
 
-        console.log(factory1.deployer());
         vm.startPrank(notDeployer);
-        vm.expectRevert();
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
+        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
         vm.stopPrank();
 
-        vm.startPrank(OWNER);
         // not reverted initialized successfully
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        vm.startPrank(OWNER);
+        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
 
-        //vm.expectRevert(abi.encodeWithSelector(INttFactory.WormholeConfigAlreadyInitialized.selector));
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        vm.expectRevert(abi.encodeWithSelector(INttFactory.WormholeConfigAlreadyInitialized.selector));
+        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
     }
 }
