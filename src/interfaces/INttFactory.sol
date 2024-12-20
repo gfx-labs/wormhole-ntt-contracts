@@ -31,14 +31,20 @@ interface INttFactory is IERC165 {
     event TransceiverDeployed(address indexed transceiver, address indexed token);
     event NttOwnerDeployed(address indexed ownerContract, address indexed manager, address indexed transceiver);
     event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
-    event BytecodesInitialized(bytes32 managerBytecode, bytes32 transceiverBytecode);
+    event ManagerBytecodeInitialized(bytes32 managerBytecode);
+    event TransceiverBytecodeInitialized(bytes32 transceiverBytecode);
+    event WormholeConfigInitialized(address whCoreBridge, address whRelayer, address specialRelayer, uint16 whChainId);
 
     // --- Errors ---
+
     error NotDeployer();
     error InvalidBytecodes();
-    error BytescodesAlreadySet();
+    error ManagerBytecodeAlreadyInitialized();
+    error TransceiverBytecodeAlreadyInitialized();
     error BytecodesNotInitialized();
-    error InvalidParameters();
+    error WormholeConfigAlreadyInitialized();
+    error WormholeConfigNotInitialized();
+    error InvalidTokenParameters();
 
     // --- Functions ---
 

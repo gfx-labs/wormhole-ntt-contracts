@@ -39,10 +39,10 @@ contract NttFactory is INttFactory {
     uint256 public constant GAS_LIMIT = 500000;
     uint8 public constant CONSISTENCY_LEVEL = 202;
 
-    uint16 public immutable wormholeChainId;
-    address public immutable wormholeCoreBridge;
-    address public immutable wormholeRelayer;
-    address public immutable specialRelayer;
+    uint16 public wormholeChainId;
+    address public wormholeCoreBridge;
+    address public wormholeRelayer;
+    address public specialRelayer;
 
     /// @notice Deployer address to restrict the call to initializeBytecode
     address public immutable deployer;
@@ -57,34 +57,63 @@ contract NttFactory is INttFactory {
         _;
     }
 
-    constructor(address whCoreBridge, address whRelayer, address whSpecialRelayer, uint16 whChainId) {
-        wormholeChainId = whChainId;
+    constructor(address deployerAddress) {
+        deployer = deployerAddress;
+    }
+
+    function initializeWormholeConfig(
+        address whCoreBridge,
+        address whRelayer,
+        address whSpecialRelayer,
+        uint16 whChainId
+    ) external onlyDeployer {
+        if (
+            wormholeCoreBridge != address(0) || wormholeCoreBridge != address(0) || specialRelayer != address(0)
+                || wormholeChainId != 0
+        ) {
+            revert WormholeConfigAlreadyInitialized();
+        }
+
         wormholeCoreBridge = whCoreBridge;
         wormholeRelayer = whRelayer;
         specialRelayer = whSpecialRelayer;
-        deployer = msg.sender;
+        wormholeChainId = whChainId;
+
+        emit WormholeConfigInitialized(wormholeCoreBridge, wormholeRelayer, specialRelayer, wormholeChainId);
     }
 
     /**
-     * @notice Initialize bytecode to be used on deploy of NTT contracts
-     * @param managerBytecode creationCode for the manager
+     * @notice Initialize transceiver bytecode to be used on deploy of NTT transceiver
      * @param transceiverBytecode creationCode for the transceiver
      */
-    function initializeBytecode(bytes calldata managerBytecode, bytes calldata transceiverBytecode)
-        external
-        onlyDeployer
-    {
-        if (managerBytecode.length == 0 || transceiverBytecode.length == 0) {
+    function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external onlyDeployer {
+        if (transceiverBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttManagerBytecode.length != 0 && nttTransceiverBytecode.length != 0) {
-            revert BytescodesAlreadySet();
+        if (nttTransceiverBytecode.length != 0) {
+            revert TransceiverBytecodeAlreadyInitialized();
+        }
+
+        nttTransceiverBytecode = transceiverBytecode;
+
+        emit TransceiverBytecodeInitialized(keccak256(transceiverBytecode));
+    }
+
+    /**
+     * @notice Initialize manager bytecode to be used on deploy of NTT manager
+     * @param managerBytecode creationCode for the manager
+     */
+    function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
+        if (managerBytecode.length == 0) {
+            revert InvalidBytecodes();
+        }
+        if (nttManagerBytecode.length != 0) {
+            revert ManagerBytecodeAlreadyInitialized();
         }
 
         nttManagerBytecode = managerBytecode;
-        nttTransceiverBytecode = transceiverBytecode;
 
-        emit BytecodesInitialized(keccak256(managerBytecode), keccak256(transceiverBytecode));
+        emit ManagerBytecodeInitialized(keccak256(managerBytecode));
     }
 
     /// @inheritdoc INttFactory
@@ -95,7 +124,9 @@ contract NttFactory is INttFactory {
         uint256 outboundLimit,
         PeersLibrary.PeerParams[] memory peerParams
     ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
-        if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) revert InvalidParameters();
+        if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
+            revert InvalidTokenParameters();
+        }
 
         if (nttManagerBytecode.length == 0 || nttTransceiverBytecode.length == 0) {
             revert BytecodesNotInitialized();

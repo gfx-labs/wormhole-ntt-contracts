@@ -20,10 +20,14 @@ contract NttFactoryDeploy is Script {
         uint16 whChainId = IWormhole(wormholeCoreBridge).chainId();
 
         vm.startBroadcast(deployerPrivateKey);
-        NttFactory factory = new NttFactory{salt: salt}(wormholeCoreBridge, wormholeRelayer, specialRelayer, whChainId);
-        factory.initializeBytecode(type(NttManager).creationCode, type(WormholeTransceiver).creationCode);
+        NttFactory factory = new NttFactory{salt: salt}(deployer);
+
+        factory.initializeManagerBytecode(type(NttManager).creationCode);
+        factory.initializeTransceiverBytecode(type(WormholeTransceiver).creationCode);
+        factory.initializeWormholeConfig(wormholeCoreBridge, wormholeRelayer, specialRelayer, whChainId);
 
         vm.stopBroadcast();
+
         console2.log("Factory deployed to:", address(factory));
     }
 }

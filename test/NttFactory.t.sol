@@ -84,8 +84,11 @@ contract NttFactoryTest is Test {
         wormhole = new MockWormhole(CHAIN_ID);
 
         // Deploy factory
-        factory = new NttFactory(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
-        factory.initializeBytecode(mockManagerBytecode, mockTransceiverBytecode);
+        vm.startPrank(OWNER);
+        factory = new NttFactory(OWNER);
+        factory.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        factory.initializeManagerBytecode(mockManagerBytecode);
+        factory.initializeTransceiverBytecode(mockTransceiverBytecode);
 
         existing_token = new MockERC20(TOKEN_NAME, TOKEN_SYMBOL, 18);
         MockERC20(existing_token).transferOwnership(EXISTING_TOKEN_OWNER);
@@ -104,7 +107,6 @@ contract NttFactoryTest is Test {
         });
 
         // Setup owner
-        vm.startPrank(OWNER);
     }
 
     function test_DeployNtt_BurningMode() public {
@@ -183,7 +185,7 @@ contract NttFactoryTest is Test {
         });
 
         // Test empty token name
-        vm.expectRevert(INttFactory.InvalidParameters.selector);
+        vm.expectRevert(INttFactory.InvalidTokenParameters.selector);
         factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsEmptyName, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
 
         // Test empty token symbol
@@ -194,7 +196,7 @@ contract NttFactoryTest is Test {
             initialSupply: INITIAL_SUPPLY
         });
 
-        vm.expectRevert(INttFactory.InvalidParameters.selector);
+        vm.expectRevert(INttFactory.InvalidTokenParameters.selector);
         factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsEmptySymbol, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
     }
 
@@ -339,26 +341,69 @@ contract NttFactoryTest is Test {
         assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
     }
 
-    function test_initializeBytecode() public {
+    function test_initializeManagerBytecode() public {
         address notDeployer = address(0x31);
 
-        NttFactory factory1 = new NttFactory(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        NttFactory factory1 = new NttFactory(OWNER);
         vm.stopPrank(); // Stop prank from owner
 
         vm.startPrank(notDeployer);
         vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
-        factory1.initializeBytecode(mockManagerBytecode, mockTransceiverBytecode);
+        factory1.initializeManagerBytecode(mockManagerBytecode);
         vm.stopPrank();
 
         vm.startPrank(OWNER);
         // invalidBytecodes
         vm.expectRevert(abi.encodeWithSelector(INttFactory.InvalidBytecodes.selector));
-        factory1.initializeBytecode(bytes(""), bytes(""));
+        factory1.initializeManagerBytecode(bytes(""));
 
         // not reverted initialized successfully
-        factory1.initializeBytecode(mockManagerBytecode, mockTransceiverBytecode);
+        factory1.initializeManagerBytecode(mockManagerBytecode);
 
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.BytescodesAlreadySet.selector));
-        factory1.initializeBytecode(mockManagerBytecode, mockTransceiverBytecode);
+        vm.expectRevert(abi.encodeWithSelector(INttFactory.ManagerBytecodeAlreadyInitialized.selector));
+        factory1.initializeManagerBytecode(mockManagerBytecode);
+    }
+
+    function test_initializeTransceiverBytecode() public {
+        address notDeployer = address(0x31);
+
+        NttFactory factory1 = new NttFactory(OWNER);
+        vm.stopPrank(); // Stop prank from owner
+
+        vm.startPrank(notDeployer);
+        vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
+        factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
+        vm.stopPrank();
+
+        vm.startPrank(OWNER);
+        // invalidBytecodes
+        vm.expectRevert(abi.encodeWithSelector(INttFactory.InvalidBytecodes.selector));
+        factory1.initializeTransceiverBytecode(bytes(""));
+
+        // not reverted initialized successfully
+        factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
+
+        vm.expectRevert(abi.encodeWithSelector(INttFactory.TransceiverBytecodeAlreadyInitialized.selector));
+        factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
+    }
+
+    function test_initializeWormholeConfig() public {
+        address notDeployer = address(0x31);
+
+        NttFactory factory1 = new NttFactory(OWNER);
+        vm.stopPrank(); // Stop prank from owner
+
+        console.log(factory1.deployer());
+        vm.startPrank(notDeployer);
+        vm.expectRevert();
+        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        vm.stopPrank();
+
+        vm.startPrank(OWNER);
+        // not reverted initialized successfully
+        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+
+        //vm.expectRevert(abi.encodeWithSelector(INttFactory.WormholeConfigAlreadyInitialized.selector));
+        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
     }
 }
