@@ -12,7 +12,6 @@ import {Implementation} from "native-token-transfers/libraries/Implementation.so
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
-import {IWormhole} from "wormhole-solidity-sdk/interfaces/IWormhole.sol";
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttFactory} from "./interfaces/INttFactory.sol";
 import {NttOwner} from "./NttOwner.sol";
@@ -126,6 +125,13 @@ contract NttFactory is INttFactory {
     ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
+        }
+
+        if (
+            wormholeChainId == 0 || wormholeCoreBridge == address(0) || wormholeRelayer == address(0)
+                || specialRelayer == address(0)
+        ) {
+            revert WormholeConfigNotInitialized();
         }
 
         if (nttManagerBytecode.length == 0 || nttTransceiverBytecode.length == 0) {
