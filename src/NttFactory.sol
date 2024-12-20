@@ -94,9 +94,6 @@ contract NttFactory is INttFactory {
         // with the transceiver deployed, we are able to set it
         IManagerBase(nttManager).setTransceiver(transceiver);
 
-        // As is only one transceiver now, with set to 1
-        INttManager(nttManager).setThreshold(1);
-
         // Now transceiver can be configured from this factory
         PeersLibrary.configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
 

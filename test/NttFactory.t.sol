@@ -143,6 +143,7 @@ contract NttFactoryTest is Test {
         assertEq(address(deployedManager.token()), token);
         assertEq(deployedManager.owner(), ownerContract);
         assertEq(deployedManager.pauser(), ownerContract);
+        assertEq(deployedManager.getThreshold(), 1);
 
         // Verify transceiver deployment
         WormholeTransceiver deployedTransceiver = WormholeTransceiver(transceiver);
@@ -186,6 +187,7 @@ contract NttFactoryTest is Test {
         assertEq(deployedTransceiver.owner(), ownerContract);
         assertEq(deployedTransceiver.pauser(), ownerContract);
         assertEq(deployedManager.pauser(), ownerContract);
+        assertEq(deployedManager.getThreshold(), 1);
 
         assertTrue(deployedTransceiver.isWormholeEvmChain(2));
         assertTrue(deployedTransceiver.isWormholeRelayingEnabled(2));
