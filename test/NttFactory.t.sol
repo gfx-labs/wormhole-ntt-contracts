@@ -58,6 +58,7 @@ contract MockERC20 is ERC20, Ownable {
 contract NttFactoryTest is Test {
     NttFactory public factory;
     MockWormhole public wormhole;
+    INttFactory.ConstructorParams constructorParams;
 
     address constant OWNER = address(0x1);
     address constant EXISTING_TOKEN_OWNER = address(0xA);
@@ -76,9 +77,6 @@ contract NttFactoryTest is Test {
     bytes constant mockManagerBytecode = type(NttManager).creationCode;
     bytes constant mockTransceiverBytecode = type(WormholeTransceiver).creationCode;
 
-    // Setup environment parameters
-    INttFactory.EnvParams envParams;
-
     INttFactory.TokenParams public tokenParamsBurning;
     INttFactory.TokenParams public tokenParamsLocking;
 
@@ -86,14 +84,15 @@ contract NttFactoryTest is Test {
         // Deploy mock wormhole
         wormhole = new MockWormhole(CHAIN_ID);
 
-        envParams = INttFactory.EnvParams({
+        constructorParams = INttFactory.ConstructorParams({
+            whChainId: wormhole.chainId(),
             wormholeCoreBridge: address(wormhole),
-            wormholeRelayerAddr: address(0x2),
-            specialRelayerAddr: address(0x3)
+            wormholeRelayer: address(0x2),
+            specialRelayer: address(0x3)
         });
 
         // Deploy factory
-        factory = new NttFactory();
+        factory = new NttFactory(constructorParams);
 
         existing_token = new MockERC20(TOKEN_NAME, TOKEN_SYMBOL, 18);
         MockERC20(existing_token).transferOwnership(EXISTING_TOKEN_OWNER);
@@ -126,7 +125,6 @@ contract NttFactoryTest is Test {
             tokenParamsBurning,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -167,7 +165,6 @@ contract NttFactoryTest is Test {
             tokenParamsLocking,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -212,7 +209,6 @@ contract NttFactoryTest is Test {
             tokenParamsEmptyName,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockBytecode,
             mockBytecode
@@ -232,7 +228,6 @@ contract NttFactoryTest is Test {
             tokenParamsEmptySymbol,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockBytecode,
             mockBytecode
@@ -251,7 +246,6 @@ contract NttFactoryTest is Test {
             tokenParamsBurning,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -263,7 +257,6 @@ contract NttFactoryTest is Test {
             tokenParamsBurning,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -275,7 +268,6 @@ contract NttFactoryTest is Test {
             tokenParamsBurning,
             "DIFFERENT_SALT",
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -304,7 +296,6 @@ contract NttFactoryTest is Test {
             tokenParamsLocking,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -316,7 +307,6 @@ contract NttFactoryTest is Test {
             tokenParamsLocking,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -328,7 +318,6 @@ contract NttFactoryTest is Test {
             tokenParamsLocking,
             "DIFFERENT_SALT",
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -357,7 +346,6 @@ contract NttFactoryTest is Test {
             tokenParamsLocking,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -380,7 +368,6 @@ contract NttFactoryTest is Test {
             tokenParamsLocking,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -405,7 +392,6 @@ contract NttFactoryTest is Test {
             tokenParamsBurning,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams1,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -436,7 +422,6 @@ contract NttFactoryTest is Test {
             tokenParamsBurning,
             EXTERNAL_SALT,
             OUTBOUND_LIMIT,
-            envParams,
             peerParams1,
             mockManagerBytecode,
             mockTransceiverBytecode
@@ -458,7 +443,7 @@ contract NttFactoryTest is Test {
     }
 
     function test_supportInterface() public view {
-        assertTrue(factory.supportsInterface(0x553eda9b)); // INttFactory
+        assertTrue(factory.supportsInterface(0xb055ceed)); // INttFactory
         assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
     }
 }

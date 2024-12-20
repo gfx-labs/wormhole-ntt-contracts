@@ -11,10 +11,11 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
  */
 interface INttFactory is IERC165 {
     // --- Structs ---
-    struct EnvParams {
+    struct ConstructorParams {
+        uint16 whChainId;
         address wormholeCoreBridge;
-        address wormholeRelayerAddr;
-        address specialRelayerAddr;
+        address wormholeRelayer;
+        address specialRelayer;
     }
 
     struct TokenParams {
@@ -27,14 +28,6 @@ interface INttFactory is IERC165 {
     struct DeploymentParams {
         address token;
         IManagerBase.Mode mode;
-        uint16 wormholeChainId;
-        uint64 rateLimitDuration;
-        bool shouldSkipRatelimiter;
-        address wormholeCoreBridge;
-        address wormholeRelayerAddr;
-        address specialRelayerAddr;
-        uint8 consistencyLevel;
-        uint256 gasLimit;
         uint256 outboundLimit;
         string externalSalt;
     }
@@ -64,7 +57,6 @@ interface INttFactory is IERC165 {
      * @param tokenParams params to deploy or use existing params
      * @param externalSalt External salt used for deterministic deployment
      * @param outboundLimit Outbound limit for the new token
-     * @param envParams Environment parameters for the deployment
      * @param peerParams Peer parameters for the deployment
      * @param nttManagerBytecode Bytecode of the NTT manager
      * @param nttTransceiverBytecode Bytecode of the NTT transceiver
@@ -78,7 +70,6 @@ interface INttFactory is IERC165 {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        EnvParams memory envParams,
         PeersLibrary.PeerParams[] memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode

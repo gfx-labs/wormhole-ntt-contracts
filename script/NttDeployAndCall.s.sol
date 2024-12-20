@@ -24,11 +24,11 @@ contract NttDeployAndCall is Script {
         //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ETH_SEPOLIA")
         // });
 
-        INttFactory.EnvParams memory envParamsArbSepolia = INttFactory.EnvParams({
-            wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ARB_SEPOLIA"),
-            wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ARB_SEPOLIA"),
-            specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ARB_SEPOLIA")
-        });
+        // INttFactory.EnvParams memory envParamsArbSepolia = INttFactory.EnvParams({
+        //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_ARB_SEPOLIA"),
+        //     wormholeRelayerAddr: vm.envAddress("WORMHOLE_RELAYER_ADDR_ARB_SEPOLIA"),
+        //     specialRelayerAddr: vm.envAddress("SPECIAL_RELAYER_ADDR_ARB_SEPOLIA")
+        // });
 
         // INttFactory.EnvParams memory envParamsOpSepolia = INttFactory.EnvParams({
         //     wormholeCoreBridge: vm.envAddress("WORMHOLE_CORE_BRIDGE_OP_SEPOLIA"),
@@ -41,10 +41,10 @@ contract NttDeployAndCall is Script {
         //uint16 arbSepolia = 10003;
 
         // deploy(envParamsBaseSepolia, sepolia);
-        deploy(envParamsArbSepolia, baseSepolia);
+        deploy(baseSepolia);
     }
 
-    function deploy(INttFactory.EnvParams memory envParams, uint16 peerChainId) internal {
+    function deploy(uint16 peerChainId) internal {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address nttFactory = vm.envAddress("NTT_FACTORY");
 
@@ -72,7 +72,6 @@ contract NttDeployAndCall is Script {
             tokenParams,
             "salt",
             initialSupply,
-            envParams,
             peerParams,
             type(NttManager).creationCode,
             type(WormholeTransceiver).creationCode

@@ -40,7 +40,17 @@ contract NttFactory is INttFactory {
     uint256 public constant GAS_LIMIT = 500000;
     uint8 public constant CONSISTENCY_LEVEL = 202;
 
-    constructor() {}
+    uint16 immutable whChainId;
+    address immutable wormholeCoreBridge;
+    address immutable wormholeRelayer;
+    address immutable specialRelayer;
+
+    constructor(ConstructorParams memory params) {
+        whChainId = params.whChainId;
+        wormholeCoreBridge = params.wormholeCoreBridge;
+        wormholeRelayer = params.wormholeRelayer;
+        specialRelayer = params.specialRelayer;
+    }
 
     /// @inheritdoc INttFactory
     function deployNtt(
@@ -48,7 +58,6 @@ contract NttFactory is INttFactory {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        EnvParams memory envParams,
         PeersLibrary.PeerParams[] memory peerParams,
         bytes memory nttManagerBytecode,
         bytes memory nttTransceiverBytecode
@@ -64,35 +73,23 @@ contract NttFactory is INttFactory {
             : tokenParams.existingAddress;
 
         // deploy manager
-        DeploymentParams memory params = DeploymentParams({
-            token: token,
-            mode: mode,
-            wormholeChainId: IWormhole(envParams.wormholeCoreBridge).chainId(),
-            rateLimitDuration: RATE_LIMIT_DURATION,
-            shouldSkipRatelimiter: SHOULD_SKIP_RATE_LIMITER,
-            wormholeCoreBridge: envParams.wormholeCoreBridge,
-            wormholeRelayerAddr: envParams.wormholeRelayerAddr,
-            specialRelayerAddr: envParams.specialRelayerAddr,
-            consistencyLevel: CONSISTENCY_LEVEL,
-            gasLimit: GAS_LIMIT,
-            outboundLimit: outboundLimit,
-            externalSalt: externalSalt
-        });
+        DeploymentParams memory params =
+            DeploymentParams({token: token, mode: mode, outboundLimit: outboundLimit, externalSalt: externalSalt});
         nttManager = deployNttManager(params, nttManagerBytecode);
 
         if (params.mode == IManagerBase.Mode.BURNING) {
             configureTokenSettings(token, owner, tokenParams.initialSupply, nttManager);
         }
 
+        // Don't skip rate limiting
+        INttManager(nttManager).setOutboundLimit(params.outboundLimit);
+
         // Configure NttManager, but not ownership
         // To be able to call `configureNttTransceiver` from this factory
-        if (!params.shouldSkipRatelimiter) {
-            INttManager(nttManager).setOutboundLimit(params.outboundLimit);
-        }
         PeersLibrary.configureNttManager(INttManager(nttManager), peerParams);
 
         // Deploy Wormhole Transceiver.
-        transceiver = deployWormholeTransceiver(params, nttManager, nttTransceiverBytecode);
+        transceiver = deployWormholeTransceiver(nttManager, nttTransceiverBytecode);
 
         // with the transceiver deployed, we are able to set it
         IManagerBase(nttManager).setTransceiver(transceiver);
@@ -156,13 +153,7 @@ contract NttFactory is INttFactory {
 
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
-            abi.encode(
-                params.token,
-                params.mode,
-                params.wormholeChainId,
-                params.rateLimitDuration,
-                params.shouldSkipRatelimiter
-            )
+            abi.encode(params.token, params.mode, whChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
         );
 
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
@@ -175,29 +166,22 @@ contract NttFactory is INttFactory {
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
 
         NttManager nttManagerProxy = NttManager(CREATE3.deploy(managerSalt, proxyCreationCode, 0));
+
         // This is made here, not in constructor because only the deployer can call it
         nttManagerProxy.initialize();
 
         return address(nttManagerProxy);
     }
 
-    function deployWormholeTransceiver(
-        DeploymentParams memory params,
-        address nttManager,
-        bytes memory nttTransceiverBytecode
-    ) internal returns (address) {
+    function deployWormholeTransceiver(address nttManager, bytes memory nttTransceiverBytecode)
+        internal
+        returns (address)
+    {
         bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttTransceiverBytecode,
-            abi.encode(
-                nttManager,
-                params.wormholeCoreBridge,
-                params.wormholeRelayerAddr,
-                params.specialRelayerAddr,
-                params.consistencyLevel,
-                params.gasLimit
-            )
+            abi.encode(nttManager, wormholeCoreBridge, wormholeRelayer, specialRelayer, CONSISTENCY_LEVEL, GAS_LIMIT)
         );
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
