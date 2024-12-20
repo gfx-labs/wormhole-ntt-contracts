@@ -432,8 +432,8 @@ contract NttFactoryTest is Test {
         vm.startPrank(address(OWNER));
         bytes4 selector = bytes4(keccak256("setPeer(uint16,bytes32,uint8,uint256)"));
         bytes32 peerAddress = PeersLibrary.normalizeAddress(address(manager));
-        bytes memory data = abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT);
-        NttOwner(ownerContract).execute(manager, selector, data);
+        bytes memory data = abi.encodePacked(selector, abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT));
+        NttOwner(ownerContract).execute(manager, data);
         vm.stopPrank();
 
         assertEq(INttManager(manager).getPeer(4).tokenDecimals, 4);
@@ -441,7 +441,7 @@ contract NttFactoryTest is Test {
 
         vm.startPrank(address(0x25));
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
-        NttOwner(ownerContract).execute(manager, selector, data);
+        NttOwner(ownerContract).execute(manager, data);
     }
 
     function test_supportInterface() public view {

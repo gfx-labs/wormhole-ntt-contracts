@@ -8,6 +8,7 @@ import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 import {PeersLibrary} from "./PeersLibrary.sol";
 import {INttOwner} from "./interfaces/INttOwner.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title NttOwner
@@ -30,16 +31,14 @@ contract NttOwner is Ownable, INttOwner {
     /**
      * @inheritdoc INttOwner
      */
-    function execute(address target, bytes4 selector, bytes calldata data)
+    function execute(address target, bytes calldata completeCalldata)
         external
         onlyOwner
-        returns (bool success, bytes memory result)
+        returns (bytes memory result)
     {
-        bytes memory completeCalldata = abi.encodePacked(selector, data);
+        (result) = Address.functionCall(target, completeCalldata);
 
-        (success, result) = target.call(completeCalldata);
-
-        return (success, result);
+        return result;
     }
 
     /**
