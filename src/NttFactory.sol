@@ -183,6 +183,12 @@ contract NttFactory is INttFactory {
         return (token, nttManager, transceiver, address(ownerContract));
     }
 
+    /**
+     * @notice Deploys a new token with 18 decimal precision
+     * @dev Note: The deployed token will always have 18 decimals, regardless of
+     *      the decimal precision of the same token on other chains. Ensure proper
+     *      decimal handling when integrating across chains.
+     */
     function deployToken(string memory name, string memory symbol, string memory externalSalt)
         internal
         returns (address)
