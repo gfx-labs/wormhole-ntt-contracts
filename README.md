@@ -1,5 +1,15 @@
 # NTT Factory
 
+To deploy a new factory using the script `NttFactory.s.sol`, CREATE2 is used to maintain the same address across chains for a given bytecode and deployer. The deployer is passed as parameter to avoid conflicts with the `CREATE2` usage. Other parameters are initialized later to avoid problems with block gas limit and different bytecodes for different chains.
+
+A new factory requires calling before trying to deploy and NTT in case of not using `NttFactory.s.sol`.
+
+1. initializeManagerBytecode
+2. initializeTransceiverBytecode
+3. initializeWormholeConfig (relayer, special relayer, wormhole core bridge and the wormhole chain in use)
+
+For multiple deployments, the `deploy.sh` bash script is provided that takes a file `addresses.csv` with the required parameters and deploy on each chain. Each chain must be configured on `foundry.toml` beforehand.
+
 ## Creating New NTT Tokens
 
 To create a new token, call `deployNtt` with the following parameters:
@@ -8,10 +18,7 @@ To create a new token, call `deployNtt` with the following parameters:
 - `tokenParams` (name, symbol, initialSupply, existingAddress): When using `LOCKING` mode, `existingAddress` specifies the token to lock. Otherwise, the remaining parameters are used for token creation.
 - `externalSalt`: Random string provided for salt randomization
 - `outboundLimit`: The maximum outbound transfer limit
-- `envParams`: Contains Relayer, special relayer, and Wormhole bridge addresses for the chain in use
 - `peerParams`: Array containing decimals, inboundLimit, and chain data. The address is expected to be consistent across chains
-- `nttManagerBytecode`: Bytecode used for the implementation deployment of NttManager
-- `nttTransceiverBytecode`: Bytecode used for the implementation deployment of WormholeTransceiver
 
 ## Proxies
 
@@ -56,3 +63,17 @@ We omit the token address here since multiple NTT tokens may exist for the same 
 4. nttManager
 
 The `nttManager` address is incorporated into the salt calculation.
+
+## Future work
+
+### zkSync
+
+At the time of writing Wormhole does not support zkSync Era so this is informational in case it is supported in the future.
+
+The contract uses both Create2 (from OpenZeppelin) and CREATE3 (from Solmate) for deterministic contract deployment. However, these deployment methods will not work on zkSync Era because according to the docs the zkSync compiler requires all contract bytecode to be known at compilation time to generate validity proofs. Using dynamic deployment methods like Create2 and Create3 where the bytecode is determined at runtime is not supported.
+
+If zkSync Era compatibility is required, consider:
+
+- Using standard new deployments instead of Create2/CREATE3
+- Implementing an alternative deployment strategy specific to zkSync Era
+- Using zkSync's native factory contracts and deployment methods

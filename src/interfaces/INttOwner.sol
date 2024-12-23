@@ -21,14 +21,10 @@ interface INttOwner is IERC165 {
     /**
      * @notice Executes a call to a target contract with specified function selector and calldata
      * @param target The address of the contract to call
-     * @param selector The function selector to call
-     * @param data The calldata for the function call
-     * @return success Boolean indicating if the call was successful
+     * @param completeCalldata The calldata for the function call
      * @return result The returned data from the call
      */
-    function execute(address target, bytes4 selector, bytes calldata data)
-        external
-        returns (bool success, bytes memory result);
+    function execute(address target, bytes calldata completeCalldata) external returns (bytes memory result);
 
     /**
      * @notice Implements ERC165 to declare support for interfaces
