@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache 2
-pragma solidity >=0.6.12 <0.9.0;
+pragma solidity 0.8.22;
 
 import {ERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {ERC20Burnable} from "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Burnable.sol";
@@ -38,9 +38,5 @@ contract PeerToken is BaseToken, ERC20Burnable, Ownable {
         }
         minter = newMinter;
         emit NewMinter(newMinter);
-    }
-
-    function _update(address _from, address _to, uint256 _value) internal override(ERC20, BaseToken) {
-        return BaseToken._update(_from, _to, _value);
     }
 }
