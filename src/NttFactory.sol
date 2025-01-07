@@ -15,10 +15,8 @@ import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttFactory} from "./interfaces/INttFactory.sol";
 import {NttOwner} from "./NttOwner.sol";
-
 import {PeersLibrary} from "./PeersLibrary.sol";
-
-import {PeerToken} from "vendor/tokens/PeerToken.sol";
+import {PeerToken} from "./tokens/PeerToken.sol";
 
 /**
  * @title NttFactory
