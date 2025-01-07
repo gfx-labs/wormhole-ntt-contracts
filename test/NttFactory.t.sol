@@ -17,7 +17,7 @@ import {INttFactory} from "../src/interfaces/INttFactory.sol";
 import {PeersLibrary} from "../src/PeersLibrary.sol";
 import {NttOwner} from "../src/NttOwner.sol";
 
-import {PeerToken} from "../vendor/tokens/PeerToken.sol";
+import {PeerToken} from "../src/tokens/PeerToken.sol";
 
 contract MockWormhole {
     uint16 private _chainId;
