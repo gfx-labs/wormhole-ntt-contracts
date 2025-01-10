@@ -30,7 +30,6 @@ interface INttFactory is IERC165 {
     event ManagerDeployed(address indexed manager, address indexed token);
     event TransceiverDeployed(address indexed transceiver, address indexed token);
     event NttOwnerDeployed(address indexed ownerContract, address indexed manager, address indexed transceiver);
-    event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
     event ManagerBytecodeInitialized(bytes32 managerBytecode);
     event TransceiverBytecodeInitialized(bytes32 transceiverBytecode);
     event WormholeConfigInitialized(address whCoreBridge, address whRelayer, address specialRelayer, uint16 whChainId);
