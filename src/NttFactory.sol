@@ -65,7 +65,7 @@ contract NttFactory is INttFactory {
         uint16 whChainId
     ) external onlyDeployer {
         if (
-            wormholeCoreBridge != address(0) || wormholeCoreBridge != address(0) || specialRelayer != address(0)
+            wormholeCoreBridge != address(0) || wormholeRelayer != address(0) || specialRelayer != address(0)
                 || wormholeChainId != 0
         ) {
             revert WormholeConfigAlreadyInitialized();
