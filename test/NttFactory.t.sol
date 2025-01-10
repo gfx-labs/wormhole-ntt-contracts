@@ -6,7 +6,6 @@ import "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-
 import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -335,7 +334,7 @@ contract NttFactoryTest is Test {
     }
 
     function test_supportInterface() public view {
-        assertTrue(factory.supportsInterface(0xfa25525e)); // INttFactory
+        assertTrue(factory.supportsInterface(0x2dbd5264)); // INttFactory
         assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
     }
 

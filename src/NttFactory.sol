@@ -58,6 +58,7 @@ contract NttFactory is INttFactory {
         deployer = deployerAddress;
     }
 
+    /// @inheritdoc INttFactory
     function initializeWormholeConfig(
         address whCoreBridge,
         address whRelayer,
@@ -79,10 +80,7 @@ contract NttFactory is INttFactory {
         emit WormholeConfigInitialized(wormholeCoreBridge, wormholeRelayer, specialRelayer, wormholeChainId);
     }
 
-    /**
-     * @notice Initialize transceiver bytecode to be used on deploy of NTT transceiver
-     * @param transceiverBytecode creationCode for the transceiver
-     */
+    /// @inheritdoc INttFactory
     function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external onlyDeployer {
         if (transceiverBytecode.length == 0) {
             revert InvalidBytecodes();
@@ -96,10 +94,7 @@ contract NttFactory is INttFactory {
         emit TransceiverBytecodeInitialized(keccak256(transceiverBytecode));
     }
 
-    /**
-     * @notice Initialize manager bytecode to be used on deploy of NTT manager
-     * @param managerBytecode creationCode for the manager
-     */
+    /// @inheritdoc INttFactory
     function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
         if (managerBytecode.length == 0) {
             revert InvalidBytecodes();

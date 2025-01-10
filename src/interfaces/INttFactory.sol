@@ -74,6 +74,32 @@ interface INttFactory is IERC165 {
     ) external returns (address token, address nttManager, address transceiver, address ownerContract);
 
     /**
+     * @notice Initialize manager bytecode to be used on deploy of NTT manager
+     * @param managerBytecode creationCode for the manager
+     */
+    function initializeManagerBytecode(bytes calldata managerBytecode) external;
+
+    /**
+     * @notice Initialize transceiver bytecode to be used on deploy of NTT transceiver
+     * @param transceiverBytecode creationCode for the transceiver
+     */
+    function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external;
+
+    /**
+     * @notice Initialize wormhole addresses for a given wormhole chain
+     * @param whCoreBridge Wormhole core bridge
+     * @param whRelayer Wormhole relayer
+     * @param whSpecialRelayer Womrhole special relayer
+     * @param whChainId Wormhole formatted chainId
+     */
+    function initializeWormholeConfig(
+        address whCoreBridge,
+        address whRelayer,
+        address whSpecialRelayer,
+        uint16 whChainId
+    ) external;
+
+    /**
      * @notice Implements ERC165 to declare support for interfaces
      * @param interfaceId The interface identifier, as specified in ERC-165
      * @return bool True if the contract implements the requested interface
