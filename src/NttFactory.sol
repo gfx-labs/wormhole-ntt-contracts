@@ -143,6 +143,10 @@ contract NttFactory is INttFactory {
             ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
             : tokenParams.existingAddress;
 
+        if (token == address(0)) {
+            revert InvalidTokenParameters();
+        }
+
         // deploy manager
         DeploymentParams memory params =
             DeploymentParams({token: token, mode: mode, outboundLimit: outboundLimit, externalSalt: externalSalt});
