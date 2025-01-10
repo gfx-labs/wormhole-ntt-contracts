@@ -37,14 +37,12 @@ contract NttOwner is Ownable, INttOwner {
         returns (bytes memory result)
     {
         (result) = Address.functionCall(target, completeCalldata);
-
-        return result;
     }
 
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
         return interfaceId == type(INttOwner).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 }
