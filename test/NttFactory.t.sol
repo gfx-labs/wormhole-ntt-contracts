@@ -84,7 +84,7 @@ contract NttFactoryTest is Test {
 
         // Deploy factory
         vm.startPrank(OWNER);
-        factory = new NttFactory(OWNER);
+        factory = new NttFactory(OWNER, "0.0.1");
         factory.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
         factory.initializeManagerBytecode(mockManagerBytecode);
         factory.initializeTransceiverBytecode(mockTransceiverBytecode);
@@ -334,7 +334,9 @@ contract NttFactoryTest is Test {
     }
 
     function test_supportInterface() public view {
-        assertTrue(factory.supportsInterface(0x2dbd5264)); // INttFactory
+        bytes4 NTT_FACTORY_INTERFACE_ID = type(INttFactory).interfaceId;
+
+        assertTrue(factory.supportsInterface(NTT_FACTORY_INTERFACE_ID)); // INttFactory
         assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
     }
 
@@ -342,7 +344,7 @@ contract NttFactoryTest is Test {
         address notDeployer = address(0x31);
 
         vm.startPrank(OWNER);
-        NttFactory factory1 = new NttFactory(OWNER);
+        NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
         vm.stopPrank(); // Stop prank from owner
 
         vm.startPrank(notDeployer);
@@ -366,7 +368,7 @@ contract NttFactoryTest is Test {
         address notDeployer = address(0x31);
 
         vm.startPrank(OWNER);
-        NttFactory factory1 = new NttFactory(OWNER);
+        NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
         vm.stopPrank(); // Stop prank from owner
 
         vm.startPrank(notDeployer);
@@ -391,7 +393,7 @@ contract NttFactoryTest is Test {
         uint16 chainId = wormhole.chainId();
 
         vm.startPrank(OWNER);
-        NttFactory factory1 = new NttFactory(OWNER);
+        NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
         vm.stopPrank(); // Stop prank from owner
 
         vm.startPrank(notDeployer);

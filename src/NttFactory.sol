@@ -25,10 +25,6 @@ import {PeerToken} from "./tokens/PeerToken.sol";
 contract NttFactory is INttFactory {
     // --- State ---
 
-    /// @notice Contract version for upgrade tracking
-    /// @dev Should be incremented on each upgrade
-    bytes32 public constant VERSION = "0.0.70";
-
     /// @notice Default values used for manager and transceiver deploy
     /// @dev Same default values as used on the cli
     bool public constant SHOULD_SKIP_RATE_LIMITER = false;
@@ -44,6 +40,9 @@ contract NttFactory is INttFactory {
     /// @notice Deployer address to restrict the call to initializeBytecode
     address public immutable deployer;
 
+    /// @notice Contract version for upgrade tracking
+    bytes32 public immutable version;
+
     bytes public nttManagerBytecode;
     bytes public nttTransceiverBytecode;
 
@@ -54,8 +53,9 @@ contract NttFactory is INttFactory {
         _;
     }
 
-    constructor(address deployerAddress) {
+    constructor(address deployerAddress, bytes32 currentVersion) {
         deployer = deployerAddress;
+        version = currentVersion;
     }
 
     /// @inheritdoc INttFactory
@@ -190,7 +190,7 @@ contract NttFactory is INttFactory {
         internal
         returns (address)
     {
-        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, name, symbol, externalSalt));
+        bytes32 tokenSalt = keccak256(abi.encodePacked(version, msg.sender, name, symbol, externalSalt));
 
         // Deploy token. Initially we need to have minter and owner as this factory.
         address token = CREATE3.deploy(
@@ -231,7 +231,7 @@ contract NttFactory is INttFactory {
     function deployNttManager(DeploymentParams memory params) internal returns (address) {
         // We don't want to get the same bytecode if the token is the same, using externalSalt here too
         bytes32 implementationSalt =
-            keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
+            keccak256(abi.encodePacked(version, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
@@ -241,13 +241,13 @@ contract NttFactory is INttFactory {
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
         // Get the same address across chains for the proxy. We can't use token address for hub and spoke
-        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", msg.sender, params.externalSalt));
+        bytes32 managerSalt = keccak256(abi.encodePacked(version, "MANAGER", msg.sender, params.externalSalt));
 
         return deployAndInitializeProxy(implementation, managerSalt);
     }
 
     function deployWormholeTransceiver(address nttManager) internal returns (address) {
-        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", msg.sender, address(this)));
+        bytes32 implementationSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttTransceiverBytecode,
@@ -256,7 +256,7 @@ contract NttFactory is INttFactory {
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
         // Get the same address across chains for the proxy
-        bytes32 transceiverSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER", msg.sender, nttManager));
+        bytes32 transceiverSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER", msg.sender, nttManager));
 
         return deployAndInitializeProxy(implementation, transceiverSalt);
     }

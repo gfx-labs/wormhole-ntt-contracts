@@ -51,7 +51,7 @@ interface INttFactory is IERC165 {
      * @notice Returns the version of the factory
      * @return bytes32 representing the version
      */
-    function VERSION() external view returns (bytes32);
+    function version() external view returns (bytes32);
 
     /**
      * @notice Deploy a new NTT token, its manager and transceiver deterministically
