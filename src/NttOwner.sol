@@ -5,7 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
-import {PeersLibrary} from "./PeersLibrary.sol";
+import {PeersManager} from "./PeersManager.sol";
 import {INttOwner} from "./interfaces/INttOwner.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
@@ -14,18 +14,19 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
  * @title NttOwner
  * @notice Owner contract to provide helpers to NTT deployed contracts
  */
-contract NttOwner is Ownable, INttOwner {
+contract NttOwner is Ownable, PeersManager, INttOwner {
     constructor(address owner) Ownable(owner) {}
 
     /**
      * @inheritdoc INttOwner
      */
-    function setPeers(address nttManager, address nttTransceiver, PeersLibrary.PeerParams[] memory peerParams)
+    function setPeers(address nttManager, address nttTransceiver, PeersManager.PeerParams[] memory peerParams)
         external
+        payable
         onlyOwner
     {
-        PeersLibrary.configureNttManager(INttManager(nttManager), peerParams);
-        PeersLibrary.configureNttTransceiver(IWormholeTransceiver(nttTransceiver), peerParams);
+        configureNttManager(INttManager(nttManager), peerParams);
+        configureNttTransceiver(IWormholeTransceiver(nttTransceiver), peerParams);
     }
 
     /**
@@ -33,10 +34,11 @@ contract NttOwner is Ownable, INttOwner {
      */
     function execute(address target, bytes calldata completeCalldata)
         external
+        payable
         onlyOwner
         returns (bytes memory result)
     {
-        (result) = Address.functionCall(target, completeCalldata);
+        (result) = Address.functionCallWithValue(target, completeCalldata, msg.value);
     }
 
     /**

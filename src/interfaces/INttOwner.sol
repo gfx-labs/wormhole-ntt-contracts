@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {PeersLibrary} from "./../PeersLibrary.sol";
+import {PeersManager} from "./../PeersManager.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
@@ -15,8 +15,9 @@ interface INttOwner is IERC165 {
      * @param nttTransceiver The address of the NTT Transceiver contract
      * @param peerParams The parameters for the peers
      */
-    function setPeers(address nttManager, address nttTransceiver, PeersLibrary.PeerParams[] memory peerParams)
-        external;
+    function setPeers(address nttManager, address nttTransceiver, PeersManager.PeerParams[] memory peerParams)
+        external
+        payable;
 
     /**
      * @notice Executes a call to a target contract with specified function selector and calldata
@@ -24,7 +25,7 @@ interface INttOwner is IERC165 {
      * @param completeCalldata The calldata for the function call
      * @return result The returned data from the call
      */
-    function execute(address target, bytes calldata completeCalldata) external returns (bytes memory result);
+    function execute(address target, bytes calldata completeCalldata) external payable returns (bytes memory result);
 
     /**
      * @notice Implements ERC165 to declare support for interfaces

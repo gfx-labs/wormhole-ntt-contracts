@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
-import {PeersLibrary} from "./../PeersLibrary.sol";
+import {PeersManager} from "./../PeersManager.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
@@ -70,8 +70,8 @@ interface INttFactory is IERC165 {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersLibrary.PeerParams[] memory peerParams
-    ) external returns (address token, address nttManager, address transceiver, address ownerContract);
+        PeersManager.PeerParams[] memory peerParams
+    ) external payable returns (address token, address nttManager, address transceiver, address ownerContract);
 
     /**
      * @notice Initialize manager bytecode to be used on deploy of NTT manager

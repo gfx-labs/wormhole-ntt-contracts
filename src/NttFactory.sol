@@ -15,14 +15,14 @@ import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttFactory} from "./interfaces/INttFactory.sol";
 import {NttOwner} from "./NttOwner.sol";
-import {PeersLibrary} from "./PeersLibrary.sol";
+import {PeersManager} from "./PeersManager.sol";
 import {PeerToken} from "./tokens/PeerToken.sol";
 
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
  */
-contract NttFactory is INttFactory {
+contract NttFactory is INttFactory, PeersManager {
     // --- State ---
 
     /// @notice Default values used for manager and transceiver deploy
@@ -114,8 +114,8 @@ contract NttFactory is INttFactory {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersLibrary.PeerParams[] memory peerParams
-    ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
+        PeerParams[] memory peerParams
+    ) external payable returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
         }
@@ -156,7 +156,7 @@ contract NttFactory is INttFactory {
 
         // Configure NttManager, but not ownership
         // To be able to call `configureNttTransceiver` from this factory
-        PeersLibrary.configureNttManager(INttManager(nttManager), peerParams);
+        configureNttManager(INttManager(nttManager), peerParams);
 
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(nttManager);
@@ -165,7 +165,7 @@ contract NttFactory is INttFactory {
         IManagerBase(nttManager).setTransceiver(transceiver);
 
         // Now transceiver can be configured from this factory
-        PeersLibrary.configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
+        configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
 
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured

@@ -4,7 +4,7 @@ pragma solidity 0.8.22;
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 
-library PeersLibrary {
+abstract contract PeersManager {
     struct PeerParams {
         uint16 peerChainId;
         uint8 decimals;
@@ -19,7 +19,7 @@ library PeersLibrary {
         bytes32 normalizedTransceiverAddress = normalizeAddress(address(transceiver));
 
         for (uint256 i = 0; i < peerParams.length; i++) {
-            transceiver.setWormholePeer(peerParams[i].peerChainId, normalizedTransceiverAddress);
+            transceiver.setWormholePeer{value: msg.value}(peerParams[i].peerChainId, normalizedTransceiverAddress);
             transceiver.setIsWormholeEvmChain(peerParams[i].peerChainId, true);
             transceiver.setIsWormholeRelayingEnabled(peerParams[i].peerChainId, true);
         }
