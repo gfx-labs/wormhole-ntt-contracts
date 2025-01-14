@@ -5,22 +5,21 @@ source .env
 # Default configuration
 VERBOSITY="-vvvv"
 SENDER="0x7EA57D754a845808c1f640271A46df98F8e75894"
-SCRIPT_PATH="script/deployNttFactory.s.sol:NttFactoryDeploy"
+SCRIPT_PATH="script/deployNttToken.s.sol:NttTokenDeploy"
+
+export BURNING_TOKEN_NAME="Token"
+export BURNING_TOKEN_SYMBOL="T"
 
 # Read CSV and deploy
-if [ -n "$VERSION" ]; then
-    echo "Deploying new factories with version: $VERSION"
-    
-    while IFS=, read -r network addr1 addr2 addr3
+if [ -n "$NTT_FACTORY" ]; then
+    echo "Deploying token with $NTT_FACTORY" 
+
+    while IFS=, read -r network _ _ _
     do
         # Skip header
         if [ "$network" != "network" ]; then
-            echo "Deploying to $network"
+            echo "Deploying token to $network"
 
-            export WORMHOLE_CORE_BRIDGE=$addr1
-            export WORMHOLE_RELAYER=$addr2
-            export SPECIAL_RELAYER=$addr3
-            
             forge script $SCRIPT_PATH \
                 --broadcast \
                 --sender $SENDER \
@@ -31,5 +30,5 @@ if [ -n "$VERSION" ]; then
         fi
     done < addresses.csv
 else
-    echo "Env variable VERSION not defined"
+    echo "NTT_FACTORY not defined"
 fi

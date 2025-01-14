@@ -17,7 +17,7 @@ contract NttFactoryDeploy is Script {
         address wormholeCoreBridge = vm.envAddress("WORMHOLE_CORE_BRIDGE");
         address wormholeRelayer = vm.envAddress("WORMHOLE_RELAYER");
         address specialRelayer = vm.envAddress("SPECIAL_RELAYER");
-        bytes32 currentVersion = vm.envBytes32("VERSION");
+        bytes32 currentVersion = bytes32(bytes(vm.envString("VERSION")));
 
         uint16 whChainId = IWormhole(wormholeCoreBridge).chainId();
 
