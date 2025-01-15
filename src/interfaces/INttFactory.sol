@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
-import {PeersLibrary} from "./../PeersLibrary.sol";
+import {PeersManager} from "./../PeersManager.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
@@ -30,7 +30,6 @@ interface INttFactory is IERC165 {
     event ManagerDeployed(address indexed manager, address indexed token);
     event TransceiverDeployed(address indexed transceiver, address indexed token);
     event NttOwnerDeployed(address indexed ownerContract, address indexed manager, address indexed transceiver);
-    event PeerSet(address indexed manager, uint16 chainId, bytes32 peer);
     event ManagerBytecodeInitialized(bytes32 managerBytecode);
     event TransceiverBytecodeInitialized(bytes32 transceiverBytecode);
     event WormholeConfigInitialized(address whCoreBridge, address whRelayer, address specialRelayer, uint16 whChainId);
@@ -52,7 +51,7 @@ interface INttFactory is IERC165 {
      * @notice Returns the version of the factory
      * @return bytes32 representing the version
      */
-    function VERSION() external view returns (bytes32);
+    function version() external view returns (bytes32);
 
     /**
      * @notice Deploy a new NTT token, its manager and transceiver deterministically
@@ -71,8 +70,34 @@ interface INttFactory is IERC165 {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersLibrary.PeerParams[] memory peerParams
-    ) external returns (address token, address nttManager, address transceiver, address ownerContract);
+        PeersManager.PeerParams[] memory peerParams
+    ) external payable returns (address token, address nttManager, address transceiver, address ownerContract);
+
+    /**
+     * @notice Initialize manager bytecode to be used on deploy of NTT manager
+     * @param managerBytecode creationCode for the manager
+     */
+    function initializeManagerBytecode(bytes calldata managerBytecode) external;
+
+    /**
+     * @notice Initialize transceiver bytecode to be used on deploy of NTT transceiver
+     * @param transceiverBytecode creationCode for the transceiver
+     */
+    function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external;
+
+    /**
+     * @notice Initialize wormhole addresses for a given wormhole chain
+     * @param whCoreBridge Wormhole core bridge
+     * @param whRelayer Wormhole relayer
+     * @param whSpecialRelayer Womrhole special relayer
+     * @param whChainId Wormhole formatted chainId
+     */
+    function initializeWormholeConfig(
+        address whCoreBridge,
+        address whRelayer,
+        address whSpecialRelayer,
+        uint16 whChainId
+    ) external;
 
     /**
      * @notice Implements ERC165 to declare support for interfaces

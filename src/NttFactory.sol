@@ -15,19 +15,15 @@ import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttFactory} from "./interfaces/INttFactory.sol";
 import {NttOwner} from "./NttOwner.sol";
-import {PeersLibrary} from "./PeersLibrary.sol";
+import {PeersManager} from "./PeersManager.sol";
 import {PeerToken} from "./tokens/PeerToken.sol";
 
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
  */
-contract NttFactory is INttFactory {
+contract NttFactory is INttFactory, PeersManager {
     // --- State ---
-
-    /// @notice Contract version for upgrade tracking
-    /// @dev Should be incremented on each upgrade
-    bytes32 public constant VERSION = "0.0.70";
 
     /// @notice Default values used for manager and transceiver deploy
     /// @dev Same default values as used on the cli
@@ -44,6 +40,9 @@ contract NttFactory is INttFactory {
     /// @notice Deployer address to restrict the call to initializeBytecode
     address public immutable deployer;
 
+    /// @notice Contract version for upgrade tracking
+    bytes32 public immutable version;
+
     bytes public nttManagerBytecode;
     bytes public nttTransceiverBytecode;
 
@@ -54,10 +53,12 @@ contract NttFactory is INttFactory {
         _;
     }
 
-    constructor(address deployerAddress) {
+    constructor(address deployerAddress, bytes32 currentVersion) {
         deployer = deployerAddress;
+        version = currentVersion;
     }
 
+    /// @inheritdoc INttFactory
     function initializeWormholeConfig(
         address whCoreBridge,
         address whRelayer,
@@ -65,7 +66,7 @@ contract NttFactory is INttFactory {
         uint16 whChainId
     ) external onlyDeployer {
         if (
-            wormholeCoreBridge != address(0) || wormholeCoreBridge != address(0) || specialRelayer != address(0)
+            wormholeCoreBridge != address(0) || wormholeRelayer != address(0) || specialRelayer != address(0)
                 || wormholeChainId != 0
         ) {
             revert WormholeConfigAlreadyInitialized();
@@ -79,10 +80,7 @@ contract NttFactory is INttFactory {
         emit WormholeConfigInitialized(wormholeCoreBridge, wormholeRelayer, specialRelayer, wormholeChainId);
     }
 
-    /**
-     * @notice Initialize transceiver bytecode to be used on deploy of NTT transceiver
-     * @param transceiverBytecode creationCode for the transceiver
-     */
+    /// @inheritdoc INttFactory
     function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external onlyDeployer {
         if (transceiverBytecode.length == 0) {
             revert InvalidBytecodes();
@@ -96,10 +94,7 @@ contract NttFactory is INttFactory {
         emit TransceiverBytecodeInitialized(keccak256(transceiverBytecode));
     }
 
-    /**
-     * @notice Initialize manager bytecode to be used on deploy of NTT manager
-     * @param managerBytecode creationCode for the manager
-     */
+    /// @inheritdoc INttFactory
     function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
         if (managerBytecode.length == 0) {
             revert InvalidBytecodes();
@@ -119,8 +114,8 @@ contract NttFactory is INttFactory {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersLibrary.PeerParams[] memory peerParams
-    ) external returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
+        PeerParams[] memory peerParams
+    ) external payable returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
         }
@@ -143,6 +138,10 @@ contract NttFactory is INttFactory {
             ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
             : tokenParams.existingAddress;
 
+        if (token == address(0)) {
+            revert InvalidTokenParameters();
+        }
+
         // deploy manager
         DeploymentParams memory params =
             DeploymentParams({token: token, mode: mode, outboundLimit: outboundLimit, externalSalt: externalSalt});
@@ -157,7 +156,7 @@ contract NttFactory is INttFactory {
 
         // Configure NttManager, but not ownership
         // To be able to call `configureNttTransceiver` from this factory
-        PeersLibrary.configureNttManager(INttManager(nttManager), peerParams);
+        configureNttManager(INttManager(nttManager), peerParams);
 
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(nttManager);
@@ -166,7 +165,7 @@ contract NttFactory is INttFactory {
         IManagerBase(nttManager).setTransceiver(transceiver);
 
         // Now transceiver can be configured from this factory
-        PeersLibrary.configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
+        configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
 
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured
@@ -191,7 +190,7 @@ contract NttFactory is INttFactory {
         internal
         returns (address)
     {
-        bytes32 tokenSalt = keccak256(abi.encodePacked(VERSION, msg.sender, name, symbol, externalSalt));
+        bytes32 tokenSalt = keccak256(abi.encodePacked(version, msg.sender, name, symbol, externalSalt));
 
         // Deploy token. Initially we need to have minter and owner as this factory.
         address token = CREATE3.deploy(
@@ -232,7 +231,7 @@ contract NttFactory is INttFactory {
     function deployNttManager(DeploymentParams memory params) internal returns (address) {
         // We don't want to get the same bytecode if the token is the same, using externalSalt here too
         bytes32 implementationSalt =
-            keccak256(abi.encodePacked(VERSION, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
+            keccak256(abi.encodePacked(version, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttManagerBytecode,
@@ -242,13 +241,13 @@ contract NttFactory is INttFactory {
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
         // Get the same address across chains for the proxy. We can't use token address for hub and spoke
-        bytes32 managerSalt = keccak256(abi.encodePacked(VERSION, "MANAGER", msg.sender, params.externalSalt));
+        bytes32 managerSalt = keccak256(abi.encodePacked(version, "MANAGER", msg.sender, params.externalSalt));
 
         return deployAndInitializeProxy(implementation, managerSalt);
     }
 
     function deployWormholeTransceiver(address nttManager) internal returns (address) {
-        bytes32 implementationSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER_SALT", msg.sender, address(this)));
+        bytes32 implementationSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
             nttTransceiverBytecode,
@@ -257,7 +256,7 @@ contract NttFactory is INttFactory {
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 
         // Get the same address across chains for the proxy
-        bytes32 transceiverSalt = keccak256(abi.encodePacked(VERSION, "TRANSCEIVER", msg.sender, nttManager));
+        bytes32 transceiverSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER", msg.sender, nttManager));
 
         return deployAndInitializeProxy(implementation, transceiverSalt);
     }
