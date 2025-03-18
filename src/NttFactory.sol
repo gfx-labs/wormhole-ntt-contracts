@@ -113,9 +113,8 @@ contract NttFactory is INttFactory, PeersManager {
         IManagerBase.Mode mode,
         TokenParams memory tokenParams,
         string memory externalSalt,
-        uint256 outboundLimit,
-        PeerParams[] memory peerParams
-    ) external payable returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
+        uint256 outboundLimit
+    ) external payable returns (address token, address nttManager, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
         }
@@ -127,7 +126,7 @@ contract NttFactory is INttFactory, PeersManager {
             revert WormholeConfigNotInitialized();
         }
 
-        if (nttManagerBytecode.length == 0 || nttTransceiverBytecode.length == 0) {
+        if (nttManagerBytecode.length == 0) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
@@ -151,15 +150,30 @@ contract NttFactory is INttFactory, PeersManager {
             configureTokenSettings(token, owner, tokenParams.initialSupply, nttManager);
         }
 
-        // Don't skip rate limiting
-        INttManager(nttManager).setOutboundLimit(params.outboundLimit);
+        emit ManagerDeployed(nttManager, token);
+
+        emit NttOwnerDeployed(address(ownerContract), nttManager);
+
+        return (token, nttManager, address(ownerContract));
+    }
+
+    /// @inheritdoc INttFactory
+    function deployAndInitializeTransceiver(address nttManager, PeerParams[] memory peerParams, address ownerContract)
+        external
+        returns (address transceiver)
+    {
+        if (nttTransceiverBytecode.length == 0) {
+            revert BytecodesNotInitialized();
+        }
+        if (ownerContract == address(0)) {
+            revert InvalidOwnerContract();
+        }
+        // Deploy Wormhole Transceiver.
+        transceiver = deployWormholeTransceiver(nttManager);
 
         // Configure NttManager, but not ownership
         // To be able to call `configureNttTransceiver` from this factory
         configureNttManager(INttManager(nttManager), peerParams);
-
-        // Deploy Wormhole Transceiver.
-        transceiver = deployWormholeTransceiver(nttManager);
 
         // with the transceiver deployed, we are able to set it
         IManagerBase(nttManager).setTransceiver(transceiver);
@@ -167,17 +181,13 @@ contract NttFactory is INttFactory, PeersManager {
         // Now transceiver can be configured from this factory
         configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
 
-        // change ownership and pauser capability of nttManager and transceiver
-        // to owner contract now that everything is configured
+        // change ownership and pauser capability of the transceiver and manager
+        // to the manager's owner contract
         PausableOwnable(nttManager).transferOwnership(address(ownerContract));
         PausableOwnable(nttManager).transferPauserCapability(address(ownerContract));
-        PausableOwnable(transceiver).transferPauserCapability(address(ownerContract));
+        PausableOwnable(transceiver).transferPauserCapability(ownerContract);
 
-        emit ManagerDeployed(nttManager, token);
-        emit TransceiverDeployed(transceiver, token);
-        emit NttOwnerDeployed(address(ownerContract), nttManager, transceiver);
-
-        return (token, nttManager, transceiver, address(ownerContract));
+        emit TransceiverDeployed(transceiver, IManagerBase(nttManager).token());
     }
 
     /**
