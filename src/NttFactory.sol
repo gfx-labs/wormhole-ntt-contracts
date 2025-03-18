@@ -165,6 +165,9 @@ contract NttFactory is INttFactory, PeersManager {
         if (nttTransceiverBytecode.length == 0) {
             revert BytecodesNotInitialized();
         }
+        if (ownerContract == address(0)) {
+            revert InvalidOwnerContract();
+        }
         // Deploy Wormhole Transceiver.
         transceiver = deployWormholeTransceiver(nttManager);
 

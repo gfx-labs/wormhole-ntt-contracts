@@ -44,6 +44,7 @@ interface INttFactory is IERC165 {
     error WormholeConfigAlreadyInitialized();
     error WormholeConfigNotInitialized();
     error InvalidTokenParameters();
+    error InvalidOwnerContract();
 
     // --- Functions ---
 
