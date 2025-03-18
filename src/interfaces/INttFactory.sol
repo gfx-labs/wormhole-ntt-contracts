@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
-import {PeersManager} from "./../PeersManager.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { IManagerBase } from "native-token-transfers/interfaces/IManagerBase.sol";
+import { PeersManager } from "./../PeersManager.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title INttFactory
@@ -29,7 +29,7 @@ interface INttFactory is IERC165 {
     event TokenDeployed(address indexed token, string name, string symbol);
     event ManagerDeployed(address indexed manager, address indexed token);
     event TransceiverDeployed(address indexed transceiver, address indexed token);
-    event NttOwnerDeployed(address indexed ownerContract, address indexed manager, address indexed transceiver);
+    event NttOwnerDeployed(address indexed ownerContract, address indexed manager);
     event ManagerBytecodeInitialized(bytes32 managerBytecode);
     event TransceiverBytecodeInitialized(bytes32 transceiverBytecode);
     event WormholeConfigInitialized(address whCoreBridge, address whRelayer, address specialRelayer, uint16 whChainId);
@@ -59,19 +59,29 @@ interface INttFactory is IERC165 {
      * @param tokenParams params to deploy or use existing params
      * @param externalSalt External salt used for deterministic deployment
      * @param outboundLimit Outbound limit for the new token
-     * @param peerParams Peer parameters for the deployment
      * @return token Address of the deployed token
      * @return nttManager Address of the deployed manager
-     * @return transceiver Address of the deployed transceiver
      * @return ownerContract Address of the contract that is owner of manager and transceiver
      */
     function deployNtt(
         IManagerBase.Mode mode,
         TokenParams memory tokenParams,
         string memory externalSalt,
-        uint256 outboundLimit,
-        PeersManager.PeerParams[] memory peerParams
-    ) external payable returns (address token, address nttManager, address transceiver, address ownerContract);
+        uint256 outboundLimit
+    ) external payable returns (address token, address nttManager, address ownerContract);
+
+    /**
+     *
+     * @notice Deploy a transceiver for an existing NTT Manager deterministically
+     * @param nttManager Address of the NTT Manager
+     * @param peerParams Peer parameters for the deployment
+     * @return transceiver Address of the deployed transceiver
+     */
+    function deployAndInitializeTransceiver(
+        address nttManager,
+        PeersManager.PeerParams[] memory peerParams,
+        address ownerContract
+    ) external returns (address transceiver);
 
     /**
      * @notice Initialize manager bytecode to be used on deploy of NTT manager

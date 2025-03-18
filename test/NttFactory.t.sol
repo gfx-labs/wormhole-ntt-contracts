@@ -3,20 +3,20 @@ pragma solidity 0.8.22;
 
 import "forge-std/Test.sol";
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
-import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
-import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
-import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import { NttManager } from "native-token-transfers/NttManager/NttManager.sol";
+import { WormholeTransceiver } from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
+import { IManagerBase } from "native-token-transfers/interfaces/IManagerBase.sol";
+import { INttManager } from "native-token-transfers/interfaces/INttManager.sol";
 
-import {NttFactory} from "../src/NttFactory.sol";
-import {INttFactory} from "../src/interfaces/INttFactory.sol";
-import {PeersManager} from "../src/PeersManager.sol";
-import {NttOwner} from "../src/NttOwner.sol";
+import { NttFactory } from "../src/NttFactory.sol";
+import { INttFactory } from "../src/interfaces/INttFactory.sol";
+import { PeersManager } from "../src/PeersManager.sol";
+import { NttOwner } from "../src/NttOwner.sol";
 
-import {PeerToken} from "../src/tokens/PeerToken.sol";
+import { PeerToken } from "../src/tokens/PeerToken.sol";
 
 contract MockWormhole {
     uint16 private _chainId;
@@ -109,11 +109,18 @@ contract NttFactoryTest is Test {
     function test_DeployNtt_BurningMode() public {
         // Setup peer parameters
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-        peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         // Deploy NTT system
-        (address token, address nttManager, address transceiver, address ownerContract) =
-            factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        (address token, address nttManager, address ownerContract) = factory.deployNtt(
+            IManagerBase.Mode.BURNING,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
+
+        // Deploy NTT Transceiver
+        address transceiver = factory.deployAndInitializeTransceiver(nttManager, peerParams, ownerContract);
 
         // Verify token deployment
         PeerToken deployedToken = PeerToken(token);
@@ -143,12 +150,18 @@ contract NttFactoryTest is Test {
     function test_DeployNtt_LockingMode() public {
         // Setup peer parameters
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-        peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         // Deploy NTT system
-        (address token, address nttManager, address transceiver, address ownerContract) =
-            factory.deployNtt(IManagerBase.Mode.LOCKING, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        (address token, address nttManager, address ownerContract) = factory.deployNtt(
+            IManagerBase.Mode.LOCKING,
+            tokenParamsLocking,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
 
+        // Deploy NTT Transceiver
+        address transceiver = factory.deployAndInitializeTransceiver(nttManager, peerParams, ownerContract);
         // Verify token is the existing one
         assertEq(token, address(existing_token));
 
@@ -172,8 +185,6 @@ contract NttFactoryTest is Test {
     }
 
     function test_RevertInvalidParameters() public {
-        PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-
         INttFactory.TokenParams memory tokenParamsEmptyName = INttFactory.TokenParams({
             name: "",
             symbol: TOKEN_SYMBOL,
@@ -183,7 +194,7 @@ contract NttFactoryTest is Test {
 
         // Test empty token name
         vm.expectRevert(INttFactory.InvalidTokenParameters.selector);
-        factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsEmptyName, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsEmptyName, EXTERNAL_SALT, OUTBOUND_LIMIT);
 
         // Test empty token symbol
         INttFactory.TokenParams memory tokenParamsEmptySymbol = INttFactory.TokenParams({
@@ -194,74 +205,92 @@ contract NttFactoryTest is Test {
         });
 
         vm.expectRevert(INttFactory.InvalidTokenParameters.selector);
-        factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsEmptySymbol, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        factory.deployNtt(IManagerBase.Mode.BURNING, tokenParamsEmptySymbol, EXTERNAL_SALT, OUTBOUND_LIMIT);
     }
 
     function test_DeploymentDeterminismBurning() public {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-        peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1,) =
-            factory.deployNtt(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        (address token1, address manager1, ) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
 
         vm.expectRevert(); // Should revert on second deployment with same parameters
-        factory.deployNtt(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        factory.deployNtt(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT);
 
         // should not fail with a different external salt
-        (address token2, address manager2, address transceiver2,) =
-            factory.deployNtt(mode, tokenParamsBurning, "DIFFERENT_SALT", OUTBOUND_LIMIT, peerParams);
+        (address token2, address manager2, ) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            "DIFFERENT_SALT",
+            OUTBOUND_LIMIT
+        );
 
         // Verify first deployment was successful
         assertTrue(token1 != address(0));
         assertTrue(manager1 != address(0));
-        assertTrue(transceiver1 != address(0));
 
         // Verify second deployment was successful
         assertTrue(token2 != address(0));
         assertTrue(manager2 != address(0));
-        assertTrue(transceiver2 != address(0));
     }
 
     function test_DeploymentDeterminismLocking() public {
         IManagerBase.Mode mode = IManagerBase.Mode.LOCKING;
 
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-        peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1,) =
-            factory.deployNtt(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        (address token1, address manager1, ) = factory.deployNtt(
+            mode,
+            tokenParamsLocking,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
 
         vm.expectRevert(); // Should revert on second deployment with same parameters
-        factory.deployNtt(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        factory.deployNtt(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT);
 
         // should not fail with a different external salt
-        (address token2, address manager2, address transceiver2,) =
-            factory.deployNtt(mode, tokenParamsLocking, "DIFFERENT_SALT", OUTBOUND_LIMIT, peerParams);
+        (address token2, address manager2, ) = factory.deployNtt(
+            mode,
+            tokenParamsLocking,
+            "DIFFERENT_SALT",
+            OUTBOUND_LIMIT
+        );
 
         // Verify first deployment was successful
         assertTrue(token1 != address(0));
         assertTrue(manager1 != address(0));
-        assertTrue(transceiver1 != address(0));
 
         // Verify second deployment was successful
         assertTrue(token2 != address(0));
         assertTrue(manager2 != address(0));
-        assertTrue(transceiver2 != address(0));
     }
 
     function test_OwnershipAfterDeployNttBurning() public {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-        peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1, address ownerContract) =
-            factory.deployNtt(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        (address token1, address manager1, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsLocking,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
+        // Deploy NTT Transceiver
+        address transceiver1 = factory.deployAndInitializeTransceiver(manager1, peerParams, ownerContract);
 
         assertEq(Ownable(token1).owner(), OWNER);
         assertEq(Ownable(manager1).owner(), ownerContract);
@@ -272,11 +301,17 @@ contract NttFactoryTest is Test {
         IManagerBase.Mode mode = IManagerBase.Mode.LOCKING;
 
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
-        peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         // Deploy twice with same parameters
-        (address token1, address manager1, address transceiver1, address ownerContract) =
-            factory.deployNtt(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams);
+        (address token1, address manager1, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsLocking,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
+        // Deploy NTT Transceiver
+        address transceiver1 = factory.deployAndInitializeTransceiver(manager1, peerParams, ownerContract);
 
         assertEq(Ownable(token1).owner(), EXISTING_TOKEN_OWNER);
         assertEq(Ownable(manager1).owner(), ownerContract);
@@ -287,20 +322,28 @@ contract NttFactoryTest is Test {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
         PeersManager.PeerParams[] memory peerParams1 = new PeersManager.PeerParams[](1);
-        peerParams1[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams1[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
         PeersManager.PeerParams[] memory peerParams2 = new PeersManager.PeerParams[](1);
-        peerParams2[0] = PeersManager.PeerParams({peerChainId: 3, decimals: 8, inboundLimit: OUTBOUND_LIMIT});
+        peerParams2[0] = PeersManager.PeerParams({ peerChainId: 3, decimals: 8, inboundLimit: OUTBOUND_LIMIT });
 
-        (, address manager, address transceiver, address ownerContract) =
-            factory.deployNtt(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1);
+        (, address manager, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
+        // Deploy NTT Transceiver
+        address transceiver = factory.deployAndInitializeTransceiver(manager, peerParams1, ownerContract);
 
         vm.startPrank(address(OWNER));
         NttOwner(ownerContract).setPeers(manager, transceiver, peerParams2);
         vm.stopPrank();
 
-        INttManager.NttManagerPeer memory peer =
-            INttManager.NttManagerPeer({tokenDecimals: 8, peerAddress: bytes32(uint256(uint160((address(manager)))))});
+        INttManager.NttManagerPeer memory peer = INttManager.NttManagerPeer({
+            tokenDecimals: 8,
+            peerAddress: bytes32(uint256(uint160((address(manager)))))
+        });
         assertEq(INttManager(manager).getPeer(3).tokenDecimals, peer.tokenDecimals);
         assertEq(INttManager(manager).getPeer(3).peerAddress, peer.peerAddress);
 
@@ -313,10 +356,16 @@ contract NttFactoryTest is Test {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
         PeersManager.PeerParams[] memory peerParams1 = new PeersManager.PeerParams[](1);
-        peerParams1[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
+        peerParams1[0] = PeersManager.PeerParams({ peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT });
 
-        (, address manager,, address ownerContract) =
-            factory.deployNtt(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1);
+        (, address manager, address ownerContract) = factory.deployNtt(
+            mode,
+            tokenParamsBurning,
+            EXTERNAL_SALT,
+            OUTBOUND_LIMIT
+        );
+        // Deploy NTT Transceiver
+        factory.deployAndInitializeTransceiver(manager, peerParams1, ownerContract);
 
         vm.startPrank(address(OWNER));
         bytes4 selector = bytes4(keccak256("setPeer(uint16,bytes32,uint8,uint256)"));
