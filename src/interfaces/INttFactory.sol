@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import { IManagerBase } from "native-token-transfers/interfaces/IManagerBase.sol";
-import { PeersManager } from "./../PeersManager.sol";
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
+import {PeersManager} from "./../PeersManager.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title INttFactory
