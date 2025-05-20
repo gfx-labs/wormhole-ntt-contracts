@@ -10,11 +10,13 @@ import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
+import {IWormholeTransceiverState} from "native-token-transfers/interfaces/IWormholeTransceiverState.sol";
 
 import {NttFactory} from "../src/NttFactory.sol";
 import {INttFactory} from "../src/interfaces/INttFactory.sol";
 import {PeersManager} from "../src/PeersManager.sol";
-import {NttOwner} from "../src/NttOwner.sol";
+import {NttProxyOwner} from "../src/NttProxyOwner.sol";
+import {Call3Value} from "../src/interfaces/INttProxyOwner.sol";
 
 import {PeerToken} from "../src/tokens/PeerToken.sol";
 
@@ -303,6 +305,7 @@ contract NttFactoryTest is Test {
         assertEq(Ownable(manager1).owner(), ownerContract);
         assertEq(Ownable(transceiver1).owner(), ownerContract);
     }
+    /// forge-config: default.allow_internal_expect_revert = true
 
     function test_setPeersAfterDeploy() public {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
@@ -317,7 +320,48 @@ contract NttFactoryTest is Test {
         }(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1);
 
         vm.startPrank(address(OWNER));
-        NttOwner(ownerContract).setPeers{value: wormholeMessageFee}(manager, transceiver, peerParams2);
+        Call3Value[] memory calls = new Call3Value[](peerParams2.length * 4);
+        for (uint256 i = 0; i < peerParams2.length; i++) {
+            calls[i * 4] = Call3Value({
+                target: address(manager),
+                allowFailure: false,
+                value: 0,
+                callData: abi.encodeWithSelector(
+                    INttManager.setPeer.selector,
+                    peerParams2[i].peerChainId,
+                    bytes32(uint256(uint160(manager))),
+                    peerParams2[i].decimals,
+                    peerParams2[i].inboundLimit
+                )
+            });
+            calls[i * 4 + 1] = Call3Value({
+                target: transceiver,
+                allowFailure: false,
+                value: 0,
+                callData: abi.encodeWithSelector(
+                    IWormholeTransceiverState.setIsWormholeRelayingEnabled.selector, peerParams2[i].peerChainId, true
+                )
+            });
+            calls[i * 4 + 2] = Call3Value({
+                target: transceiver,
+                allowFailure: false,
+                value: 0,
+                callData: abi.encodeWithSelector(
+                    IWormholeTransceiverState.setIsWormholeEvmChain.selector, peerParams2[i].peerChainId, true
+                )
+            });
+            calls[i * 4 + 3] = Call3Value({
+                target: transceiver,
+                allowFailure: false,
+                value: wormholeMessageFee,
+                callData: abi.encodeWithSelector(
+                    IWormholeTransceiverState.setWormholePeer.selector,
+                    peerParams2[i].peerChainId,
+                    bytes32(uint256(uint160(transceiver)))
+                )
+            });
+        }
+        NttProxyOwner(ownerContract).executeMany{value: wormholeMessageFee * peerParams2.length}(calls);
         vm.stopPrank();
 
         INttManager.NttManagerPeer memory peer =
@@ -328,7 +372,7 @@ contract NttFactoryTest is Test {
         vm.startPrank(address(0x25));
         vm.deal(address(0x25), wormholeMessageFee);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
-        NttOwner(ownerContract).setPeers{value: wormholeMessageFee}(manager, transceiver, peerParams2);
+        NttProxyOwner(ownerContract).executeMany{value: wormholeMessageFee * peerParams2.length}(calls);
     }
 
     function test_setPeerUsingExecute() public {
@@ -345,7 +389,7 @@ contract NttFactoryTest is Test {
         bytes4 selector = bytes4(keccak256("setPeer(uint16,bytes32,uint8,uint256)"));
         bytes32 peerAddress = bytes32(uint256(uint160((address(manager)))));
         bytes memory data = abi.encodePacked(selector, abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT));
-        NttOwner(ownerContract).execute(manager, data);
+        NttProxyOwner(ownerContract).execute(manager, data);
         vm.stopPrank();
 
         assertEq(INttManager(manager).getPeer(4).tokenDecimals, 4);
@@ -353,7 +397,7 @@ contract NttFactoryTest is Test {
 
         vm.startPrank(address(0x25));
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
-        NttOwner(ownerContract).execute(manager, data);
+        NttProxyOwner(ownerContract).execute(manager, data);
     }
 
     function test_supportInterface() public view {
