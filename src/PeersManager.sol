@@ -15,11 +15,11 @@ abstract contract PeersManager {
         return bytes32(uint256(uint160(contractAddress)));
     }
 
-    function configureNttTransceiver(IWormholeTransceiver transceiver, PeerParams[] memory peerParams) internal {
+    function configureNttTransceiver(IWormholeTransceiver transceiver, PeerParams[] memory peerParams, uint256 msgValue) internal {
         bytes32 normalizedTransceiverAddress = normalizeAddress(address(transceiver));
 
         for (uint256 i = 0; i < peerParams.length; i++) {
-            transceiver.setWormholePeer{value: msg.value}(peerParams[i].peerChainId, normalizedTransceiverAddress);
+            transceiver.setWormholePeer{value: msgValue}(peerParams[i].peerChainId, normalizedTransceiverAddress);
             transceiver.setIsWormholeEvmChain(peerParams[i].peerChainId, true);
             transceiver.setIsWormholeRelayingEnabled(peerParams[i].peerChainId, true);
         }

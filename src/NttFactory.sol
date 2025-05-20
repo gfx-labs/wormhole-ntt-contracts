@@ -7,7 +7,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
-
+import {IWormhole} from "wormhole-solidity-sdk/interfaces/IWormhole.sol";
 import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -165,7 +165,7 @@ contract NttFactory is INttFactory, PeersManager {
         IManagerBase(nttManager).setTransceiver(transceiver);
 
         // Now transceiver can be configured from this factory
-        configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams);
+        configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams, IWormhole(wormholeCoreBridge).messageFee());
 
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured
@@ -216,14 +216,14 @@ contract NttFactory is INttFactory, PeersManager {
         Ownable(token).transferOwnership(owner);
     }
 
-    function deployAndInitializeProxy(address implementation, bytes32 salt) internal returns (address) {
+    function deployAndInitializeProxy(address implementation, bytes32 salt, uint256 msgValue) internal  returns (address) {
         // Deploy deterministic proxy
         bytes memory proxyCreationCode =
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
 
         address proxy = CREATE3.deploy(salt, proxyCreationCode, 0);
 
-        Implementation(proxy).initialize();
+        Implementation(proxy).initialize{value: msgValue}();
 
         return proxy;
     }
@@ -243,7 +243,7 @@ contract NttFactory is INttFactory, PeersManager {
         // Get the same address across chains for the proxy. We can't use token address for hub and spoke
         bytes32 managerSalt = keccak256(abi.encodePacked(version, "MANAGER", msg.sender, params.externalSalt));
 
-        return deployAndInitializeProxy(implementation, managerSalt);
+        return deployAndInitializeProxy(implementation, managerSalt, 0);
     }
 
     function deployWormholeTransceiver(address nttManager) internal returns (address) {
@@ -257,8 +257,9 @@ contract NttFactory is INttFactory, PeersManager {
 
         // Get the same address across chains for the proxy
         bytes32 transceiverSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER", msg.sender, nttManager));
+        uint256 messageFee = IWormhole(wormholeCoreBridge).messageFee();
 
-        return deployAndInitializeProxy(implementation, transceiverSalt);
+        return deployAndInitializeProxy(implementation, transceiverSalt, messageFee);
     }
 
     /**

@@ -26,7 +26,7 @@ contract NttOwner is Ownable, PeersManager, INttOwner {
         onlyOwner
     {
         configureNttManager(INttManager(nttManager), peerParams);
-        configureNttTransceiver(IWormholeTransceiver(nttTransceiver), peerParams);
+        configureNttTransceiver(IWormholeTransceiver(nttTransceiver), peerParams, msg.value);
     }
 
     /**
