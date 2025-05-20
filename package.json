@@ -7,6 +7,6 @@
     "clean": "rm -rf cache out && forge clean"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {}
 }
