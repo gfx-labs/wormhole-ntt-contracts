@@ -7,7 +7,6 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
-import {IWormhole} from "wormhole-solidity-sdk/interfaces/IWormhole.sol";
 import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -18,6 +17,10 @@ import {NttOwner} from "./NttOwner.sol";
 import {PeersManager} from "./PeersManager.sol";
 import {PeerToken} from "./tokens/PeerToken.sol";
 
+
+interface IWormhole {
+  function messageFee() external view returns (uint256);
+}
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
