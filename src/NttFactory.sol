@@ -17,14 +17,14 @@ import {NttOwner} from "./NttOwner.sol";
 import {PeersManager} from "./PeersManager.sol";
 import {PeerToken} from "./tokens/PeerToken.sol";
 
-
 interface IWormhole {
-  function messageFee() external view returns (uint256);
+    function messageFee() external view returns (uint256);
 }
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
  */
+
 contract NttFactory is INttFactory, PeersManager {
     // --- State ---
 
@@ -168,7 +168,9 @@ contract NttFactory is INttFactory, PeersManager {
         IManagerBase(nttManager).setTransceiver(transceiver);
 
         // Now transceiver can be configured from this factory
-        configureNttTransceiver(IWormholeTransceiver(transceiver), peerParams, IWormhole(wormholeCoreBridge).messageFee());
+        configureNttTransceiver(
+            IWormholeTransceiver(transceiver), peerParams, IWormhole(wormholeCoreBridge).messageFee()
+        );
 
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured
@@ -219,7 +221,10 @@ contract NttFactory is INttFactory, PeersManager {
         Ownable(token).transferOwnership(owner);
     }
 
-    function deployAndInitializeProxy(address implementation, bytes32 salt, uint256 msgValue) internal  returns (address) {
+    function deployAndInitializeProxy(address implementation, bytes32 salt, uint256 msgValue)
+        internal
+        returns (address)
+    {
         // Deploy deterministic proxy
         bytes memory proxyCreationCode =
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));

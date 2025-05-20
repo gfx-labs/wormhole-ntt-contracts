@@ -15,7 +15,9 @@ abstract contract PeersManager {
         return bytes32(uint256(uint160(contractAddress)));
     }
 
-    function configureNttTransceiver(IWormholeTransceiver transceiver, PeerParams[] memory peerParams, uint256 msgValue) internal {
+    function configureNttTransceiver(IWormholeTransceiver transceiver, PeerParams[] memory peerParams, uint256 msgValue)
+        internal
+    {
         bytes32 normalizedTransceiverAddress = normalizeAddress(address(transceiver));
 
         for (uint256 i = 0; i < peerParams.length; i++) {
