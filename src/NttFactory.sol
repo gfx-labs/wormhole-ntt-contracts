@@ -13,7 +13,7 @@ import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
 import {IWormholeTransceiver} from "native-token-transfers/interfaces/IWormholeTransceiver.sol";
 import {INttFactory} from "./interfaces/INttFactory.sol";
-import {NttOwner} from "./NttOwner.sol";
+import {NttProxyOwner} from "./NttProxyOwner.sol";
 import {PeersManager} from "./PeersManager.sol";
 import {PeerToken} from "./tokens/PeerToken.sol";
 
@@ -118,7 +118,7 @@ contract NttFactory is INttFactory, PeersManager {
         string memory externalSalt,
         uint256 outboundLimit,
         PeerParams[] memory peerParams
-    ) external payable returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
+    ) external payable returns (address token, address nttManager, address transceiver, address nttProxyOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
         }
@@ -135,7 +135,6 @@ contract NttFactory is INttFactory, PeersManager {
         }
         address owner = msg.sender;
 
-        NttOwner ownerContract = new NttOwner(owner);
 
         token = (mode == IManagerBase.Mode.BURNING)
             ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
@@ -172,6 +171,8 @@ contract NttFactory is INttFactory, PeersManager {
             IWormholeTransceiver(transceiver), peerParams, IWormhole(wormholeCoreBridge).messageFee()
         );
 
+        NttProxyOwner ownerContract = new NttProxyOwner(owner);
+
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured
         PausableOwnable(nttManager).transferOwnership(address(ownerContract));
@@ -180,7 +181,7 @@ contract NttFactory is INttFactory, PeersManager {
 
         emit ManagerDeployed(nttManager, token);
         emit TransceiverDeployed(transceiver, token);
-        emit NttOwnerDeployed(address(ownerContract), nttManager, transceiver);
+        emit NttProxyOwnerDeployed(address(ownerContract), nttManager, transceiver);
 
         return (token, nttManager, transceiver, address(ownerContract));
     }

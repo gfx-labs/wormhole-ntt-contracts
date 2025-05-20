@@ -10,11 +10,13 @@ import {NttManager} from "native-token-transfers/NttManager/NttManager.sol";
 import {WormholeTransceiver} from "native-token-transfers/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
 import {INttManager} from "native-token-transfers/interfaces/INttManager.sol";
+import {IWormholeTransceiverState} from "native-token-transfers/interfaces/IWormholeTransceiverState.sol";
 
 import {NttFactory} from "../src/NttFactory.sol";
 import {INttFactory} from "../src/interfaces/INttFactory.sol";
 import {PeersManager} from "../src/PeersManager.sol";
-import {NttOwner} from "../src/NttOwner.sol";
+import {NttProxyOwner} from "../src/NttProxyOwner.sol";
+import {Call3Value} from "../src/interfaces/INttProxyOwner.sol";
 
 import {PeerToken} from "../src/tokens/PeerToken.sol";
 
@@ -303,7 +305,7 @@ contract NttFactoryTest is Test {
         assertEq(Ownable(manager1).owner(), ownerContract);
         assertEq(Ownable(transceiver1).owner(), ownerContract);
     }
-
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_setPeersAfterDeploy() public {
         IManagerBase.Mode mode = IManagerBase.Mode.BURNING;
 
@@ -316,8 +318,47 @@ contract NttFactoryTest is Test {
             value: wormholeMessageFee * 2
         }(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1);
 
+
         vm.startPrank(address(OWNER));
-        NttOwner(ownerContract).setPeers{value: wormholeMessageFee}(manager, transceiver, peerParams2);
+        Call3Value[] memory calls = new Call3Value[](peerParams2.length*4);
+        for(uint i = 0; i < peerParams2.length; i++) {
+            calls[i*4] = Call3Value({
+                target: address(manager),
+                allowFailure: false,
+                value: 0,
+                callData: abi.encodeWithSelector(INttManager.setPeer.selector,
+                                             peerParams2[i].peerChainId,
+                                             bytes32(uint256(uint160(manager))),
+                                             peerParams2[i].decimals,
+                                             peerParams2[i].inboundLimit)
+            });
+            calls[i*4+1] = Call3Value({
+                target: transceiver,
+                allowFailure: false,
+                value: 0,
+                callData: abi.encodeWithSelector(IWormholeTransceiverState.setIsWormholeRelayingEnabled.selector,
+                                             peerParams2[i].peerChainId,
+                                             true)
+            });
+            calls[i*4+2] = Call3Value({
+                target: transceiver,
+                allowFailure: false,
+                value: 0,
+                callData: abi.encodeWithSelector(IWormholeTransceiverState.setIsWormholeEvmChain.selector,
+                                             peerParams2[i].peerChainId,
+                                             true)
+            });
+            calls[i*4+3] = Call3Value({
+                target: transceiver,
+                allowFailure: false,
+                value: wormholeMessageFee,
+                callData: abi.encodeWithSelector(IWormholeTransceiverState.setWormholePeer.selector,
+                                                 peerParams2[i].peerChainId,
+                                                 bytes32(uint256(uint160(transceiver)))
+                                                )
+            });
+        }
+        NttProxyOwner(ownerContract).executeMany{value: wormholeMessageFee*peerParams2.length}(calls);
         vm.stopPrank();
 
         INttManager.NttManagerPeer memory peer =
@@ -328,7 +369,7 @@ contract NttFactoryTest is Test {
         vm.startPrank(address(0x25));
         vm.deal(address(0x25), wormholeMessageFee);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
-        NttOwner(ownerContract).setPeers{value: wormholeMessageFee}(manager, transceiver, peerParams2);
+        NttProxyOwner(ownerContract).executeMany{value: wormholeMessageFee*peerParams2.length}(calls);
     }
 
     function test_setPeerUsingExecute() public {
@@ -343,92 +384,92 @@ contract NttFactoryTest is Test {
 
         vm.startPrank(address(OWNER));
         bytes4 selector = bytes4(keccak256("setPeer(uint16,bytes32,uint8,uint256)"));
-        bytes32 peerAddress = bytes32(uint256(uint160((address(manager)))));
-        bytes memory data = abi.encodePacked(selector, abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT));
-        NttOwner(ownerContract).execute(manager, data);
-        vm.stopPrank();
+                                           bytes32 peerAddress = bytes32(uint256(uint160((address(manager)))));
+                                           bytes memory data = abi.encodePacked(selector, abi.encode(4, peerAddress, 4, OUTBOUND_LIMIT));
+                                           NttProxyOwner(ownerContract).execute(manager, data);
+                                           vm.stopPrank();
 
-        assertEq(INttManager(manager).getPeer(4).tokenDecimals, 4);
-        assertEq(INttManager(manager).getPeer(4).peerAddress, peerAddress);
+                                           assertEq(INttManager(manager).getPeer(4).tokenDecimals, 4);
+                                           assertEq(INttManager(manager).getPeer(4).peerAddress, peerAddress);
 
-        vm.startPrank(address(0x25));
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
-        NttOwner(ownerContract).execute(manager, data);
-    }
+                                           vm.startPrank(address(0x25));
+                                           vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x25)));
+                                           NttProxyOwner(ownerContract).execute(manager, data);
+                                           }
 
-    function test_supportInterface() public view {
-        bytes4 NTT_FACTORY_INTERFACE_ID = type(INttFactory).interfaceId;
+                                           function test_supportInterface() public view {
+                                           bytes4 NTT_FACTORY_INTERFACE_ID = type(INttFactory).interfaceId;
 
-        assertTrue(factory.supportsInterface(NTT_FACTORY_INTERFACE_ID)); // INttFactory
-        assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
-    }
+                                           assertTrue(factory.supportsInterface(NTT_FACTORY_INTERFACE_ID)); // INttFactory
+                                           assertTrue(factory.supportsInterface(0x01ffc9a7)); // IERC165
+                                           }
 
-    function test_initializeManagerBytecode() public {
-        address notDeployer = address(0x31);
+                                           function test_initializeManagerBytecode() public {
+                                           address notDeployer = address(0x31);
 
-        vm.startPrank(OWNER);
-        NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
-        vm.stopPrank(); // Stop prank from owner
+                                           vm.startPrank(OWNER);
+                                           NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
+                                           vm.stopPrank(); // Stop prank from owner
 
-        vm.startPrank(notDeployer);
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
-        factory1.initializeManagerBytecode(mockManagerBytecode);
-        vm.stopPrank();
+                                           vm.startPrank(notDeployer);
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
+                                           factory1.initializeManagerBytecode(mockManagerBytecode);
+                                           vm.stopPrank();
 
-        vm.startPrank(OWNER);
-        // invalidBytecodes
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.InvalidBytecodes.selector));
-        factory1.initializeManagerBytecode(bytes(""));
+                                           vm.startPrank(OWNER);
+                                           // invalidBytecodes
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.InvalidBytecodes.selector));
+                                           factory1.initializeManagerBytecode(bytes(""));
 
-        // not reverted initialized successfully
-        factory1.initializeManagerBytecode(mockManagerBytecode);
+                                           // not reverted initialized successfully
+                                           factory1.initializeManagerBytecode(mockManagerBytecode);
 
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.ManagerBytecodeAlreadyInitialized.selector));
-        factory1.initializeManagerBytecode(mockManagerBytecode);
-    }
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.ManagerBytecodeAlreadyInitialized.selector));
+                                           factory1.initializeManagerBytecode(mockManagerBytecode);
+                                           }
 
-    function test_initializeTransceiverBytecode() public {
-        address notDeployer = address(0x31);
+                                           function test_initializeTransceiverBytecode() public {
+                                           address notDeployer = address(0x31);
 
-        vm.startPrank(OWNER);
-        NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
-        vm.stopPrank(); // Stop prank from owner
+                                           vm.startPrank(OWNER);
+                                           NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
+                                           vm.stopPrank(); // Stop prank from owner
 
-        vm.startPrank(notDeployer);
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
-        factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
-        vm.stopPrank();
+                                           vm.startPrank(notDeployer);
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
+                                           factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
+                                           vm.stopPrank();
 
-        vm.startPrank(OWNER);
-        // invalidBytecodes
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.InvalidBytecodes.selector));
-        factory1.initializeTransceiverBytecode(bytes(""));
+                                           vm.startPrank(OWNER);
+                                           // invalidBytecodes
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.InvalidBytecodes.selector));
+                                           factory1.initializeTransceiverBytecode(bytes(""));
 
-        // not reverted initialized successfully
-        factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
+                                           // not reverted initialized successfully
+                                           factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
 
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.TransceiverBytecodeAlreadyInitialized.selector));
-        factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
-    }
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.TransceiverBytecodeAlreadyInitialized.selector));
+                                           factory1.initializeTransceiverBytecode(mockTransceiverBytecode);
+                                           }
 
-    function test_initializeWormholeConfig() public {
-        address notDeployer = address(0x31);
-        uint16 chainId = wormhole.chainId();
+                                           function test_initializeWormholeConfig() public {
+                                           address notDeployer = address(0x31);
+                                           uint16 chainId = wormhole.chainId();
 
-        vm.startPrank(OWNER);
-        NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
-        vm.stopPrank(); // Stop prank from owner
+                                           vm.startPrank(OWNER);
+                                           NttFactory factory1 = new NttFactory(OWNER, "0.0.1");
+                                           vm.stopPrank(); // Stop prank from owner
 
-        vm.startPrank(notDeployer);
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
-        vm.stopPrank();
+                                           vm.startPrank(notDeployer);
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
+                                           factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
+                                           vm.stopPrank();
 
-        // not reverted initialized successfully
-        vm.startPrank(OWNER);
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
+                                           // not reverted initialized successfully
+                                           vm.startPrank(OWNER);
+                                           factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
 
-        vm.expectRevert(abi.encodeWithSelector(INttFactory.WormholeConfigAlreadyInitialized.selector));
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
-    }
-}
+                                           vm.expectRevert(abi.encodeWithSelector(INttFactory.WormholeConfigAlreadyInitialized.selector));
+                                           factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
+                                           }
+                                           }
