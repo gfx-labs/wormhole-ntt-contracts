@@ -135,7 +135,6 @@ contract NttFactory is INttFactory, PeersManager {
         }
         address owner = msg.sender;
 
-
         token = (mode == IManagerBase.Mode.BURNING)
             ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
             : tokenParams.existingAddress;

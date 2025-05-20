@@ -48,4 +48,3 @@ interface INttProxyOwner is IERC165 {
      */
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
-
