@@ -33,7 +33,7 @@ contract NttTokenDeploy is Script {
         peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: type(uint64).max});
 
         (address token2,,,) =
-            factory.deployNtt(IManagerBase.Mode.BURNING, tokenParams, "SALT", type(uint64).max, peerParams);
+            factory.deployNtt(IManagerBase.Mode.BURNING, tokenParams, "SALT", type(uint64).max, peerParams, true);
 
         vm.stopBroadcast();
 

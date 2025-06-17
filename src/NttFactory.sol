@@ -117,7 +117,8 @@ contract NttFactory is INttFactory, PeersManager {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeerParams[] memory peerParams
+        PeerParams[] memory peerParams,
+        bool createToken
     ) external payable returns (address token, address nttManager, address transceiver, address nttOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
@@ -137,9 +138,8 @@ contract NttFactory is INttFactory, PeersManager {
 
         NttOwner ownerContract = new NttOwner(owner);
 
-        token = (mode == IManagerBase.Mode.BURNING)
-            ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
-            : tokenParams.existingAddress;
+        token =
+            createToken ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt) : tokenParams.existingAddress;
 
         if (token == address(0)) {
             revert InvalidTokenParameters();
