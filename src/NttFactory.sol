@@ -7,6 +7,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
+import {SSTORE2} from "solmate/utils/SSTORE2.sol";
 import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -46,7 +47,7 @@ contract NttFactory is INttFactory, PeersManager {
     /// @notice Contract version for upgrade tracking
     bytes32 public immutable version;
 
-    bytes public nttManagerBytecode;
+    address public nttManagerBytecode;
     bytes public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
@@ -102,11 +103,11 @@ contract NttFactory is INttFactory, PeersManager {
         if (managerBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttManagerBytecode.length != 0) {
+        if (nttManagerBytecode != address(0)) {
             revert ManagerBytecodeAlreadyInitialized();
         }
 
-        nttManagerBytecode = managerBytecode;
+        nttManagerBytecode = SSTORE2.write(managerBytecode);
 
         emit ManagerBytecodeInitialized(keccak256(managerBytecode));
     }
@@ -131,7 +132,7 @@ contract NttFactory is INttFactory, PeersManager {
             revert WormholeConfigNotInitialized();
         }
 
-        if (nttManagerBytecode.length == 0 || nttTransceiverBytecode.length == 0) {
+        if (nttManagerBytecode == address(0) || nttTransceiverBytecode.length == 0) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
@@ -242,7 +243,7 @@ contract NttFactory is INttFactory, PeersManager {
             keccak256(abi.encodePacked(version, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
-            nttManagerBytecode,
+            SSTORE2.read(nttManagerBytecode),
             abi.encode(params.token, params.mode, wormholeChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
         );
 
