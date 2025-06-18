@@ -15,8 +15,8 @@ contract NttTokenDeploy is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address nttFactory = vm.envAddress("NTT_FACTORY");
 
-        string memory tokenName = vm.envString("BURNING_TOKEN_NAME");
-        string memory tokenSymbol = vm.envString("BURNING_TOKEN_SYMBOL");
+        string memory tokenName = vm.envString("TOKEN_NAME");
+        string memory tokenSymbol = vm.envString("TOKEN_SYMBOL");
 
         NttFactory factory = NttFactory(nttFactory);
 
