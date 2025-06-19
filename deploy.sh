@@ -27,6 +27,7 @@ if [ -n "$VERSION" ]; then
                 -vv \
                 --via-ir \
                 --verify \
+                --optimize \
                 --rpc-url $network 
         fi
     done < addresses.csv

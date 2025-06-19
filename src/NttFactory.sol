@@ -7,6 +7,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {CREATE3} from "solmate/utils/CREATE3.sol";
+import {SSTORE2} from "solmate/utils/SSTORE2.sol";
 import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -46,8 +47,9 @@ contract NttFactory is INttFactory, PeersManager {
     /// @notice Contract version for upgrade tracking
     bytes32 public immutable version;
 
-    bytes public nttManagerBytecode;
-    bytes public nttTransceiverBytecode;
+    address public nttManagerBytecode1;
+    address public nttManagerBytecode2;
+    address public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
         if (msg.sender != deployer) {
@@ -88,11 +90,11 @@ contract NttFactory is INttFactory, PeersManager {
         if (transceiverBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttTransceiverBytecode.length != 0) {
+        if (nttTransceiverBytecode != address(0)) {
             revert TransceiverBytecodeAlreadyInitialized();
         }
 
-        nttTransceiverBytecode = transceiverBytecode;
+        nttTransceiverBytecode = SSTORE2.write(transceiverBytecode);
 
         emit TransceiverBytecodeInitialized(keccak256(transceiverBytecode));
     }
@@ -102,11 +104,12 @@ contract NttFactory is INttFactory, PeersManager {
         if (managerBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttManagerBytecode.length != 0) {
+        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0)) {
             revert ManagerBytecodeAlreadyInitialized();
         }
-
-        nttManagerBytecode = managerBytecode;
+        uint256 mid = managerBytecode.length / 2;
+        nttManagerBytecode1 = SSTORE2.write(managerBytecode[0:mid]);
+        nttManagerBytecode2 = SSTORE2.write(managerBytecode[mid:]);
 
         emit ManagerBytecodeInitialized(keccak256(managerBytecode));
     }
@@ -117,7 +120,8 @@ contract NttFactory is INttFactory, PeersManager {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeerParams[] memory peerParams
+        PeerParams[] memory peerParams,
+        bool createToken
     ) external payable returns (address token, address nttManager, address transceiver, address nttProxyOwnerAddress) {
         if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
             revert InvalidTokenParameters();
@@ -130,14 +134,15 @@ contract NttFactory is INttFactory, PeersManager {
             revert WormholeConfigNotInitialized();
         }
 
-        if (nttManagerBytecode.length == 0 || nttTransceiverBytecode.length == 0) {
+        if (
+            nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0)
+                || nttTransceiverBytecode == address(0)
+        ) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
-
-        token = (mode == IManagerBase.Mode.BURNING)
-            ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
-            : tokenParams.existingAddress;
+        token =
+            createToken ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt) : tokenParams.existingAddress;
 
         if (token == address(0)) {
             revert InvalidTokenParameters();
@@ -242,7 +247,8 @@ contract NttFactory is INttFactory, PeersManager {
             keccak256(abi.encodePacked(version, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
-            nttManagerBytecode,
+            SSTORE2.read(nttManagerBytecode1),
+            SSTORE2.read(nttManagerBytecode2),
             abi.encode(params.token, params.mode, wormholeChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
         );
 
@@ -258,7 +264,7 @@ contract NttFactory is INttFactory, PeersManager {
         bytes32 implementationSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
-            nttTransceiverBytecode,
+            SSTORE2.read(nttTransceiverBytecode),
             abi.encode(nttManager, wormholeCoreBridge, wormholeRelayer, specialRelayer, CONSISTENCY_LEVEL, GAS_LIMIT)
         );
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
