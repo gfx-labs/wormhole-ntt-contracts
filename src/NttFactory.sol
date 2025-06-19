@@ -134,7 +134,10 @@ contract NttFactory is INttFactory, PeersManager {
             revert WormholeConfigNotInitialized();
         }
 
-        if (nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0) || nttTransceiverBytecode == address(0)) {
+        if (
+            nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0)
+                || nttTransceiverBytecode == address(0)
+        ) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
