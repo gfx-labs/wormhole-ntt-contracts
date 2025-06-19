@@ -49,7 +49,7 @@ contract NttFactory is INttFactory, PeersManager {
 
     address public nttManagerBytecode1;
     address public nttManagerBytecode2;
-    bytes public nttTransceiverBytecode;
+    address public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
         if (msg.sender != deployer) {
@@ -90,11 +90,11 @@ contract NttFactory is INttFactory, PeersManager {
         if (transceiverBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttTransceiverBytecode.length != 0) {
+        if (nttTransceiverBytecode != address(0)) {
             revert TransceiverBytecodeAlreadyInitialized();
         }
 
-        nttTransceiverBytecode = transceiverBytecode;
+        nttTransceiverBytecode = SSTORE2.write(transceiverBytecode);
 
         emit TransceiverBytecodeInitialized(keccak256(transceiverBytecode));
     }
@@ -134,7 +134,7 @@ contract NttFactory is INttFactory, PeersManager {
             revert WormholeConfigNotInitialized();
         }
 
-        if (nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0) || nttTransceiverBytecode.length == 0) {
+        if (nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0) || nttTransceiverBytecode == address(0)) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
@@ -262,7 +262,7 @@ contract NttFactory is INttFactory, PeersManager {
         bytes32 implementationSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
-            nttTransceiverBytecode,
+            SSTORE2.read(nttTransceiverBytecode),
             abi.encode(nttManager, wormholeCoreBridge, wormholeRelayer, specialRelayer, CONSISTENCY_LEVEL, GAS_LIMIT)
         );
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
