@@ -10,9 +10,6 @@ env:
 
 jobs:
     check:
-        strategy:
-            fail-fast: true
-
         name: Foundry project
         runs-on: ubuntu-latest
         steps:
@@ -24,7 +21,16 @@ jobs:
               uses: foundry-rs/foundry-toolchain@v1
               with:
                   version: nightly
-
+            - name: Cache Foundry
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.foundry
+                      out
+                      cache
+                  key: foundry-${{ runner.os }}-${{ hashFiles('foundry.toml', 'lib/**') }}
+                  restore-keys: |
+                      foundry-${{ runner.os }}-
             - name: Show Forge version
               run: |
                   forge --version
