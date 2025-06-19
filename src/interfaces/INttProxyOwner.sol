@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {PeersManager} from "./../PeersManager.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-/**
- * @title INttOwner
- * @notice Interface for the NttOwner contract
- */
-interface INttOwner is IERC165 {
-    /**
-     * @notice Sets the peers for the NTT Manager and NTT Transceiver
-     * @param nttManager The address of the NTT Manager contract
-     * @param nttTransceiver The address of the NTT Transceiver contract
-     * @param peerParams The parameters for the peers
-     */
-    function setPeers(address nttManager, address nttTransceiver, PeersManager.PeerParams[] memory peerParams)
-        external
-        payable;
+struct Call3Value {
+    address target;
+    bool allowFailure;
+    uint256 value;
+    bytes callData;
+}
 
+struct Result {
+    bool success;
+    bytes returnData;
+}
+
+/**
+ * @title INttProxyOwner
+ * @notice Interface for the NttProxyOwner contract
+ */
+interface INttProxyOwner is IERC165 {
     /**
      * @notice Executes a call to a target contract with specified function selector and calldata
      * @param target The address of the contract to call
@@ -26,6 +27,19 @@ interface INttOwner is IERC165 {
      * @return result The returned data from the call
      */
     function execute(address target, bytes calldata completeCalldata) external payable returns (bytes memory result);
+
+    /**
+     * @notice Executes multiple calls to target contracts with specified function selectors and calldata
+     * @param calls The array of calls to execute
+     * @return results The array of returned data from the calls
+     */
+    function executeMany(Call3Value[] calldata calls) external payable returns (Result[] memory results);
+
+    /**
+     * @notice implementations should return true if they are NttProxyOwner
+     * @return bool True if the contract is NttProxyOwner
+     */
+    function isNttProxyOwner() external view returns (bool);
 
     /**
      * @notice Implements ERC165 to declare support for interfaces
