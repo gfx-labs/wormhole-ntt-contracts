@@ -47,7 +47,8 @@ contract NttFactory is INttFactory, PeersManager {
     /// @notice Contract version for upgrade tracking
     bytes32 public immutable version;
 
-    address public nttManagerBytecode;
+    address public nttManagerBytecode1;
+    address public nttManagerBytecode2;
     bytes public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
@@ -103,11 +104,12 @@ contract NttFactory is INttFactory, PeersManager {
         if (managerBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttManagerBytecode != address(0)) {
+        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0)) {
             revert ManagerBytecodeAlreadyInitialized();
         }
-
-        nttManagerBytecode = SSTORE2.write(managerBytecode);
+        uint256 mid = managerBytecode.length / 2;
+        nttManagerBytecode1 = SSTORE2.write(managerBytecode[0:mid]);
+        nttManagerBytecode2 = SSTORE2.write(managerBytecode[mid:]);
 
         emit ManagerBytecodeInitialized(keccak256(managerBytecode));
     }
@@ -132,7 +134,7 @@ contract NttFactory is INttFactory, PeersManager {
             revert WormholeConfigNotInitialized();
         }
 
-        if (nttManagerBytecode == address(0) || nttTransceiverBytecode.length == 0) {
+        if (nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0) || nttTransceiverBytecode.length == 0) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
@@ -243,7 +245,8 @@ contract NttFactory is INttFactory, PeersManager {
             keccak256(abi.encodePacked(version, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
 
         bytes memory bytecode = abi.encodePacked(
-            SSTORE2.read(nttManagerBytecode),
+            SSTORE2.read(nttManagerBytecode1),
+            SSTORE2.read(nttManagerBytecode2),
             abi.encode(params.token, params.mode, wormholeChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
         );
 
