@@ -31,9 +31,10 @@ contract NttTokenDeploy is Script {
 
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
         peerParams[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: type(uint64).max});
-
-        (address token2,,,) =
-            factory.deployNtt(IManagerBase.Mode.BURNING, tokenParams, "SALT", type(uint64).max, peerParams, true);
+        uint256 wormholeMessageFee = IWormhole(factory.wormholeCoreBridge()).messageFee();
+        (address token2,,,) = factory.deployNtt{value: wormholeMessageFee * 2}(
+            IManagerBase.Mode.BURNING, tokenParams, "SALT", type(uint64).max, peerParams, true
+        );
 
         vm.stopBroadcast();
 
