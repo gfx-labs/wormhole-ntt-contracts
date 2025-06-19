@@ -70,7 +70,8 @@ interface INttFactory is IERC165 {
         TokenParams memory tokenParams,
         string memory externalSalt,
         uint256 outboundLimit,
-        PeersManager.PeerParams[] memory peerParams
+        PeersManager.PeerParams[] memory peerParams,
+        bool createToken
     ) external payable returns (address token, address nttManager, address transceiver, address ownerContract);
 
     /**
