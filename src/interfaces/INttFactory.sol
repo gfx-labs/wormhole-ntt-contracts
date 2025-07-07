@@ -55,6 +55,7 @@ interface INttFactory is IERC165 {
 
     /**
      * @notice Deploy a new NTT token, its manager and transceiver deterministically
+     * @dev This function is payable to cover the wormhole protocol fee (if any). See `calculateFee` for more details.
      * @param mode Mode of the manager
      * @param tokenParams params to deploy or use existing params
      * @param externalSalt External salt used for deterministic deployment
@@ -99,6 +100,14 @@ interface INttFactory is IERC165 {
         address whSpecialRelayer,
         uint16 whChainId
     ) external;
+
+    /**
+     * @notice Calculate the fee for deploying a new NTT token
+     * @dev The output of this function is what must be sent to `deployNtt` as `msg.value`
+     * @param numberOfPeers Number of peers for the deployment
+     * @return uint256 The fee for deploying a new NTT token
+     */
+    function calculateFee(uint256 numberOfPeers) external view returns (uint256);
 
     /**
      * @notice Implements ERC165 to declare support for interfaces

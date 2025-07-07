@@ -276,6 +276,10 @@ contract NttFactory is INttFactory, PeersManager {
         return deployAndInitializeProxy(implementation, transceiverSalt, messageFee);
     }
 
+    function calculateFee(uint256 numberOfPeers) external view returns (uint256) {
+        return (1 + numberOfPeers) * IWormhole(wormholeCoreBridge).messageFee();
+    }
+
     /**
      * @inheritdoc INttFactory
      */
