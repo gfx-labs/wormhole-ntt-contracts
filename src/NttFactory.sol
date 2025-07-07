@@ -287,4 +287,3 @@ contract NttFactory is INttFactory, PeersManager {
         return interfaceId == type(INttFactory).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 }
-

@@ -226,7 +226,7 @@ contract NttFactoryTest is Test {
         );
 
         vm.expectRevert(); // Should revert on second deployment with same parameters
-        factory.deployNtt{value: deploymentFee }(
+        factory.deployNtt{value: deploymentFee}(
             mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, true
         );
 
@@ -259,7 +259,9 @@ contract NttFactoryTest is Test {
         );
 
         vm.expectRevert(); // Should revert on second deployment with same parameters
-        factory.deployNtt{value: deploymentFee}(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, false);
+        factory.deployNtt{value: deploymentFee}(
+            mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, false
+        );
 
         // should not fail with a different external salt
         (address token2, address manager2, address transceiver2,) = factory.deployNtt{value: deploymentFee}(
@@ -479,4 +481,3 @@ contract NttFactoryTest is Test {
         factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
     }
 }
-
