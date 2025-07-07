@@ -175,7 +175,14 @@ contract NttFactory is INttFactory, PeersManager {
             IWormholeTransceiver(transceiver), peerParams, IWormhole(wormholeCoreBridge).messageFee()
         );
 
-        NttProxyOwner ownerContract = new NttProxyOwner(owner);
+        // Deploy owner contract.
+        NttProxyOwner ownerContract = NttProxyOwner(
+            CREATE3.deploy(
+                keccak256(abi.encodePacked(nttManager, address(this), externalSalt, owner)),
+                abi.encodePacked(type(NttProxyOwner).creationCode, abi.encode(owner)),
+                0
+            )
+        );
 
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured
