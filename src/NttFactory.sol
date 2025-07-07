@@ -153,7 +153,7 @@ contract NttFactory is INttFactory, PeersManager {
             DeploymentParams({token: token, mode: mode, outboundLimit: outboundLimit, externalSalt: externalSalt});
         nttManager = deployNttManager(params);
 
-        if (params.mode == IManagerBase.Mode.BURNING && createToken ) {
+        if (params.mode == IManagerBase.Mode.BURNING && createToken) {
             configureTokenSettings(token, owner, tokenParams.initialSupply, nttManager);
         }
 
