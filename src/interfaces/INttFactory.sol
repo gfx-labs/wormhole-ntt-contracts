@@ -56,11 +56,19 @@ interface INttFactory is IERC165 {
     /**
      * @notice Deploy a new NTT token, its manager and transceiver deterministically
      * @dev This function is payable to cover the wormhole protocol fee (if any). See `calculateFee` for more details.
+     * @dev If `createToken` is false, there are some assumptions about the existing token:
+     *      - `peerParams.existingAddress` must be populated with a valid address
+     *      - The existing token must be a ERC20 token
+     *      - The existing token must expose a `decimals()` function
+     *      - The existing token must expose a `mint(address,uint256)` function if `mode` is `BURNING`
+     *      - The existing token must expose a `safeTransfer(address,uint256)` function if `mode` is `LOCKING`
+     *      - NTTManager must have the minter role or permission to mint for the existing token if `mode` is `BURNING`
      * @param mode Mode of the manager
      * @param tokenParams params to deploy or use existing params
      * @param externalSalt External salt used for deterministic deployment
      * @param outboundLimit Outbound limit for the new token
      * @param peerParams Peer parameters for the deployment
+     * @param createToken Whether to create a new token or use an existing one (peerParams.existingAddress)
      * @return token Address of the deployed token
      * @return nttManager Address of the deployed manager
      * @return transceiver Address of the deployed transceiver
