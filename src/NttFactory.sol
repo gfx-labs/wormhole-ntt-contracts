@@ -6,8 +6,8 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {CREATE3} from "solmate/utils/CREATE3.sol";
-import {SSTORE2} from "solmate/utils/SSTORE2.sol";
+import {CREATE3} from "solady/utils/CREATE3.sol";
+import {SSTORE2} from "solady/utils/SSTORE2.sol";
 import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -21,6 +21,7 @@ import {PeerToken} from "./tokens/PeerToken.sol";
 interface IWormhole {
     function messageFee() external view returns (uint256);
 }
+
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
@@ -71,8 +72,10 @@ contract NttFactory is INttFactory, PeersManager {
         uint16 whChainId
     ) external onlyDeployer {
         if (
-            wormholeCoreBridge != address(0) || wormholeRelayer != address(0) || specialRelayer != address(0)
-                || wormholeChainId != 0
+            wormholeCoreBridge != address(0) ||
+            wormholeRelayer != address(0) ||
+            specialRelayer != address(0) ||
+            wormholeChainId != 0
         ) {
             revert WormholeConfigAlreadyInitialized();
         }
@@ -82,11 +85,18 @@ contract NttFactory is INttFactory, PeersManager {
         specialRelayer = whSpecialRelayer;
         wormholeChainId = whChainId;
 
-        emit WormholeConfigInitialized(wormholeCoreBridge, wormholeRelayer, specialRelayer, wormholeChainId);
+        emit WormholeConfigInitialized(
+            wormholeCoreBridge,
+            wormholeRelayer,
+            specialRelayer,
+            wormholeChainId
+        );
     }
 
     /// @inheritdoc INttFactory
-    function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external onlyDeployer {
+    function initializeTransceiverBytecode(
+        bytes calldata transceiverBytecode
+    ) external onlyDeployer {
         if (transceiverBytecode.length == 0) {
             revert InvalidBytecodes();
         }
@@ -100,11 +110,16 @@ contract NttFactory is INttFactory, PeersManager {
     }
 
     /// @inheritdoc INttFactory
-    function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
+    function initializeManagerBytecode(
+        bytes calldata managerBytecode
+    ) external onlyDeployer {
         if (managerBytecode.length == 0) {
             revert InvalidBytecodes();
         }
-        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0)) {
+        if (
+            nttManagerBytecode1 != address(0) ||
+            nttManagerBytecode2 != address(0)
+        ) {
             revert ManagerBytecodeAlreadyInitialized();
         }
         uint256 mid = managerBytecode.length / 2;
@@ -122,39 +137,64 @@ contract NttFactory is INttFactory, PeersManager {
         uint256 outboundLimit,
         PeerParams[] memory peerParams,
         bool createToken
-    ) external payable returns (address token, address nttManager, address transceiver, address nttProxyOwnerAddress) {
-        if (bytes(tokenParams.name).length == 0 || bytes(tokenParams.symbol).length == 0) {
+    )
+        external
+        payable
+        returns (
+            address token,
+            address nttManager,
+            address transceiver,
+            address nttProxyOwnerAddress
+        )
+    {
+        if (
+            bytes(tokenParams.name).length == 0 ||
+            bytes(tokenParams.symbol).length == 0
+        ) {
             revert InvalidTokenParameters();
         }
 
         if (
-            wormholeChainId == 0 || wormholeCoreBridge == address(0) || wormholeRelayer == address(0)
-                || specialRelayer == address(0)
+            wormholeChainId == 0 ||
+            wormholeCoreBridge == address(0) ||
+            wormholeRelayer == address(0) ||
+            specialRelayer == address(0)
         ) {
             revert WormholeConfigNotInitialized();
         }
 
         if (
-            nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0)
-                || nttTransceiverBytecode == address(0)
+            nttManagerBytecode1 == address(0) ||
+            nttManagerBytecode2 == address(0) ||
+            nttTransceiverBytecode == address(0)
         ) {
             revert BytecodesNotInitialized();
         }
         address owner = msg.sender;
-        token =
-            createToken ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt) : tokenParams.existingAddress;
+        token = createToken
+            ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt)
+            : tokenParams.existingAddress;
 
         if (token == address(0)) {
             revert InvalidTokenParameters();
         }
 
         // deploy manager
-        DeploymentParams memory params =
-            DeploymentParams({token: token, mode: mode, outboundLimit: outboundLimit, externalSalt: externalSalt});
+        DeploymentParams memory params = DeploymentParams({
+            token: token,
+            mode: mode,
+            outboundLimit: outboundLimit,
+            externalSalt: externalSalt
+        });
         nttManager = deployNttManager(params);
 
         if (params.mode == IManagerBase.Mode.BURNING && createToken) {
-            configureTokenSettings(token, owner, tokenParams.initialSupply, nttManager);
+            configureTokenSettings(
+                token,
+                owner,
+                tokenParams.initialSupply,
+                nttManager
+            );
         }
 
         // Don't skip rate limiting
@@ -172,27 +212,47 @@ contract NttFactory is INttFactory, PeersManager {
 
         // Now transceiver can be configured from this factory
         configureNttTransceiver(
-            IWormholeTransceiver(transceiver), peerParams, IWormhole(wormholeCoreBridge).messageFee()
+            IWormholeTransceiver(transceiver),
+            peerParams,
+            IWormhole(wormholeCoreBridge).messageFee()
         );
 
         // Deploy owner contract.
         NttProxyOwner ownerContract = NttProxyOwner(
-            CREATE3.deploy(
-                keccak256(abi.encodePacked(nttManager, address(this), externalSalt, owner)),
-                abi.encodePacked(type(NttProxyOwner).creationCode, abi.encode(owner)),
-                0
+            CREATE3.deployDeterministic(
+                0,
+                abi.encodePacked(
+                    type(NttProxyOwner).creationCode,
+                    abi.encode(owner)
+                ),
+                keccak256(
+                    abi.encodePacked(
+                        nttManager,
+                        address(this),
+                        externalSalt,
+                        owner
+                    )
+                )
             )
         );
 
         // change ownership and pauser capability of nttManager and transceiver
         // to owner contract now that everything is configured
         PausableOwnable(nttManager).transferOwnership(address(ownerContract));
-        PausableOwnable(nttManager).transferPauserCapability(address(ownerContract));
-        PausableOwnable(transceiver).transferPauserCapability(address(ownerContract));
+        PausableOwnable(nttManager).transferPauserCapability(
+            address(ownerContract)
+        );
+        PausableOwnable(transceiver).transferPauserCapability(
+            address(ownerContract)
+        );
 
         emit ManagerDeployed(nttManager, token);
         emit TransceiverDeployed(transceiver, token);
-        emit NttProxyOwnerDeployed(address(ownerContract), nttManager, transceiver);
+        emit NttProxyOwnerDeployed(
+            address(ownerContract),
+            nttManager,
+            transceiver
+        );
 
         return (token, nttManager, transceiver, address(ownerContract));
     }
@@ -203,17 +263,23 @@ contract NttFactory is INttFactory, PeersManager {
      *      the decimal precision of the same token on other chains. Ensure proper
      *      decimal handling when integrating across chains.
      */
-    function deployToken(string memory name, string memory symbol, string memory externalSalt)
-        internal
-        returns (address)
-    {
-        bytes32 tokenSalt = keccak256(abi.encodePacked(version, msg.sender, name, symbol, externalSalt));
+    function deployToken(
+        string memory name,
+        string memory symbol,
+        string memory externalSalt
+    ) internal returns (address) {
+        bytes32 tokenSalt = keccak256(
+            abi.encodePacked(version, msg.sender, name, symbol, externalSalt)
+        );
 
         // Deploy token. Initially we need to have minter and owner as this factory.
-        address token = CREATE3.deploy(
-            tokenSalt,
-            abi.encodePacked(type(PeerToken).creationCode, abi.encode(name, symbol, address(this), address(this))),
-            0
+        address token = CREATE3.deployDeterministic(
+            0,
+            abi.encodePacked(
+                type(PeerToken).creationCode,
+                abi.encode(name, symbol, address(this), address(this))
+            ),
+            tokenSalt
         );
 
         emit TokenDeployed(token, name, symbol);
@@ -221,7 +287,12 @@ contract NttFactory is INttFactory, PeersManager {
         return token;
     }
 
-    function configureTokenSettings(address token, address owner, uint256 initialSupply, address nttManager) internal {
+    function configureTokenSettings(
+        address token,
+        address owner,
+        uint256 initialSupply,
+        address nttManager
+    ) internal {
         if (initialSupply > 0) {
             PeerToken(token).mint(owner, initialSupply);
         }
@@ -233,64 +304,126 @@ contract NttFactory is INttFactory, PeersManager {
         Ownable(token).transferOwnership(owner);
     }
 
-    function deployAndInitializeProxy(address implementation, bytes32 salt, uint256 msgValue)
-        internal
-        returns (address)
-    {
+    function deployAndInitializeProxy(
+        address implementation,
+        bytes32 salt,
+        uint256 msgValue
+    ) internal returns (address) {
         // Deploy deterministic proxy
-        bytes memory proxyCreationCode =
-            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
+        bytes memory proxyCreationCode = abi.encodePacked(
+            type(ERC1967Proxy).creationCode,
+            abi.encode(implementation, "")
+        );
 
-        address proxy = CREATE3.deploy(salt, proxyCreationCode, 0);
+        address proxy = CREATE3.deployDeterministic(0, proxyCreationCode, salt);
 
         Implementation(proxy).initialize{value: msgValue}();
 
         return proxy;
     }
 
-    function deployNttManager(DeploymentParams memory params) internal returns (address) {
+    function deployNttManager(
+        DeploymentParams memory params
+    ) internal returns (address) {
         // We don't want to get the same bytecode if the token is the same, using externalSalt here too
-        bytes32 implementationSalt =
-            keccak256(abi.encodePacked(version, "MANAGER_IMPL", msg.sender, params.externalSalt, address(this)));
+        bytes32 implementationSalt = keccak256(
+            abi.encodePacked(
+                version,
+                "MANAGER_IMPL",
+                msg.sender,
+                params.externalSalt,
+                address(this)
+            )
+        );
 
         bytes memory bytecode = abi.encodePacked(
             SSTORE2.read(nttManagerBytecode1),
             SSTORE2.read(nttManagerBytecode2),
-            abi.encode(params.token, params.mode, wormholeChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
+            abi.encode(
+                params.token,
+                params.mode,
+                wormholeChainId,
+                RATE_LIMIT_DURATION,
+                SHOULD_SKIP_RATE_LIMITER
+            )
         );
 
-        address implementation = Create2.deploy(0, implementationSalt, bytecode);
+        address implementation = Create2.deploy(
+            0,
+            implementationSalt,
+            bytecode
+        );
 
         // Get the same address across chains for the proxy. We can't use token address for hub and spoke
-        bytes32 managerSalt = keccak256(abi.encodePacked(version, "MANAGER", msg.sender, params.externalSalt));
+        bytes32 managerSalt = keccak256(
+            abi.encodePacked(
+                version,
+                "MANAGER",
+                msg.sender,
+                params.externalSalt
+            )
+        );
 
         return deployAndInitializeProxy(implementation, managerSalt, 0);
     }
 
-    function deployWormholeTransceiver(address nttManager) internal returns (address) {
-        bytes32 implementationSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER_SALT", msg.sender, address(this)));
+    function deployWormholeTransceiver(
+        address nttManager
+    ) internal returns (address) {
+        bytes32 implementationSalt = keccak256(
+            abi.encodePacked(
+                version,
+                "TRANSCEIVER_SALT",
+                msg.sender,
+                address(this)
+            )
+        );
 
         bytes memory bytecode = abi.encodePacked(
             SSTORE2.read(nttTransceiverBytecode),
-            abi.encode(nttManager, wormholeCoreBridge, wormholeRelayer, specialRelayer, CONSISTENCY_LEVEL, GAS_LIMIT)
+            abi.encode(
+                nttManager,
+                wormholeCoreBridge,
+                wormholeRelayer,
+                specialRelayer,
+                CONSISTENCY_LEVEL,
+                GAS_LIMIT
+            )
         );
-        address implementation = Create2.deploy(0, implementationSalt, bytecode);
+        address implementation = Create2.deploy(
+            0,
+            implementationSalt,
+            bytecode
+        );
 
         // Get the same address across chains for the proxy
-        bytes32 transceiverSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER", msg.sender, nttManager));
+        bytes32 transceiverSalt = keccak256(
+            abi.encodePacked(version, "TRANSCEIVER", msg.sender, nttManager)
+        );
         uint256 messageFee = IWormhole(wormholeCoreBridge).messageFee();
 
-        return deployAndInitializeProxy(implementation, transceiverSalt, messageFee);
+        return
+            deployAndInitializeProxy(
+                implementation,
+                transceiverSalt,
+                messageFee
+            );
     }
 
-    function calculateFee(uint256 numberOfPeers) external view returns (uint256) {
+    function calculateFee(
+        uint256 numberOfPeers
+    ) external view returns (uint256) {
         return (1 + numberOfPeers) * IWormhole(wormholeCoreBridge).messageFee();
     }
 
     /**
      * @inheritdoc INttFactory
      */
-    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
-        return interfaceId == type(INttFactory).interfaceId || interfaceId == type(IERC165).interfaceId;
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public pure override returns (bool) {
+        return
+            interfaceId == type(INttFactory).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
     }
 }
