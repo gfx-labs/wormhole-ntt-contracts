@@ -6,8 +6,8 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {CREATE3} from "solmate/utils/CREATE3.sol";
-import {SSTORE2} from "solmate/utils/SSTORE2.sol";
+import {CREATE3} from "solady/utils/CREATE3.sol";
+import {SSTORE2} from "solady/utils/SSTORE2.sol";
 import {Implementation} from "native-token-transfers/libraries/Implementation.sol";
 import {PausableOwnable} from "native-token-transfers/libraries/PausableOwnable.sol";
 import {IManagerBase} from "native-token-transfers/interfaces/IManagerBase.sol";
@@ -21,11 +21,11 @@ import {PeerToken} from "./tokens/PeerToken.sol";
 interface IWormhole {
     function messageFee() external view returns (uint256);
 }
+
 /**
  * @title NttFactory
  * @notice Factory contract for deploying cross-chain NTT tokens with their managers, transceivers and owner contract
  */
-
 contract NttFactory is INttFactory, PeersManager {
     // --- State ---
 
@@ -177,10 +177,10 @@ contract NttFactory is INttFactory, PeersManager {
 
         // Deploy owner contract.
         NttProxyOwner ownerContract = NttProxyOwner(
-            CREATE3.deploy(
-                keccak256(abi.encodePacked(nttManager, address(this), externalSalt, owner)),
+            CREATE3.deployDeterministic(
+                0,
                 abi.encodePacked(type(NttProxyOwner).creationCode, abi.encode(owner)),
-                0
+                keccak256(abi.encodePacked(nttManager, address(this), externalSalt, owner))
             )
         );
 
@@ -210,10 +210,10 @@ contract NttFactory is INttFactory, PeersManager {
         bytes32 tokenSalt = keccak256(abi.encodePacked(version, msg.sender, name, symbol, externalSalt));
 
         // Deploy token. Initially we need to have minter and owner as this factory.
-        address token = CREATE3.deploy(
-            tokenSalt,
+        address token = CREATE3.deployDeterministic(
+            0,
             abi.encodePacked(type(PeerToken).creationCode, abi.encode(name, symbol, address(this), address(this))),
-            0
+            tokenSalt
         );
 
         emit TokenDeployed(token, name, symbol);
@@ -241,7 +241,7 @@ contract NttFactory is INttFactory, PeersManager {
         bytes memory proxyCreationCode =
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, ""));
 
-        address proxy = CREATE3.deploy(salt, proxyCreationCode, 0);
+        address proxy = CREATE3.deployDeterministic(0, proxyCreationCode, salt);
 
         Implementation(proxy).initialize{value: msgValue}();
 
