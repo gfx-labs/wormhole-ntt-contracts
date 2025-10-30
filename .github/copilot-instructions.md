@@ -45,12 +45,12 @@ This is a **Foundry-based Solidity project** that implements a factory contract 
 
 1. Deploy factory via `script/deployNttFactory.s.sol` using CREATE2 (same address per deployer)
 2. Factory initialization (3 separate calls required):
-   ```solidity
-   factory.initializeManagerBytecode(type(NttManager).creationCode);
-   factory.initializeTransceiverBytecode(type(WormholeTransceiver).creationCode);
-   // Note: relayer parameters are deprecated, use address(0)
-   factory.initializeWormholeConfig(coreBridge, address(0), address(0), chainId);
-   ```
+    ```solidity
+    factory.initializeManagerBytecode(type(NttManager).creationCode);
+    factory.initializeTransceiverBytecode(type(WormholeTransceiver).creationCode);
+    // Note: relayer parameters are deprecated, use address(0)
+    factory.initializeWormholeConfig(coreBridge, address(0), address(0), chainId);
+    ```
 3. Deploy tokens via `factory.deployNtt()` - creates token (optional), manager proxy, transceiver proxy, and owner
 
 ### Operating Modes
@@ -102,13 +102,13 @@ Format of `addresses.csv`: `network,coreBridge,relayer,specialRelayer`
 
 ### Key Environment Variables
 
-- `DEPLOYER_PRIVATE_KEY`: Deployer private key for transactions
-- `VERSION`: Factory version (used in salts for deterministic addresses)
-- `NTT_FACTORY`: Factory address for token deployments
-- `WORMHOLE_CORE_BRIDGE`: Wormhole core bridge address per chain
-- `API_KEY_ALCHEMY`: For RPC endpoints
-- Chain-specific Etherscan keys: `ARBITRUM_ETHERSCAN_KEY`, `BASESEPOLIA_ETHERSCAN_KEY`, etc.
-- **Deprecated**: `WORMHOLE_RELAYER`, `SPECIAL_RELAYER` (no longer used, set to address(0))
+-   `DEPLOYER_PRIVATE_KEY`: Deployer private key for transactions
+-   `VERSION`: Factory version (used in salts for deterministic addresses)
+-   `NTT_FACTORY`: Factory address for token deployments
+-   `WORMHOLE_CORE_BRIDGE`: Wormhole core bridge address per chain
+-   `API_KEY_ALCHEMY`: For RPC endpoints
+-   Chain-specific Etherscan keys: `ARBITRUM_ETHERSCAN_KEY`, `BASESEPOLIA_ETHERSCAN_KEY`, etc.
+-   **Deprecated**: `WORMHOLE_RELAYER`, `SPECIAL_RELAYER` (no longer used, set to address(0))
 
 ### Foundry Configuration
 

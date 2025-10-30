@@ -16,11 +16,11 @@ For multiple deployments, the `deploy.sh` bash script is provided that takes a f
 
 To create a new token, call `deployNtt` with the following parameters:
 
-- `mode`: BURNING or LOCKING
-- `tokenParams` (name, symbol, initialSupply, existingAddress): When using `LOCKING` mode, `existingAddress` specifies the token to lock. Otherwise, the remaining parameters are used for token creation.
-- `externalSalt`: Random string provided for salt randomization
-- `outboundLimit`: The maximum outbound transfer limit
-- `peerParams`: Array containing decimals, inboundLimit, and chain data. The address is expected to be consistent across chains
+-   `mode`: BURNING or LOCKING
+-   `tokenParams` (name, symbol, initialSupply, existingAddress): When using `LOCKING` mode, `existingAddress` specifies the token to lock. Otherwise, the remaining parameters are used for token creation.
+-   `externalSalt`: Random string provided for salt randomization
+-   `outboundLimit`: The maximum outbound transfer limit
+-   `peerParams`: Array containing decimals, inboundLimit, and chain data. The address is expected to be consistent across chains
 
 ## Proxies
 
@@ -76,6 +76,6 @@ The contract uses both Create2 (from OpenZeppelin) and CREATE3 (from Solmate) fo
 
 If zkSync Era compatibility is required, consider:
 
-- Using standard new deployments instead of Create2/CREATE3
-- Implementing an alternative deployment strategy specific to zkSync Era
-- Using zkSync's native factory contracts and deployment methods
+-   Using standard new deployments instead of Create2/CREATE3
+-   Implementing an alternative deployment strategy specific to zkSync Era
+-   Using zkSync's native factory contracts and deployment methods
