@@ -6,7 +6,9 @@ A new factory requires calling before trying to deploy and NTT in case of not us
 
 1. initializeManagerBytecode
 2. initializeTransceiverBytecode
-3. initializeWormholeConfig (relayer, special relayer, wormhole core bridge and the wormhole chain in use)
+3. initializeWormholeConfig (wormhole core bridge and the wormhole chain in use)
+
+**Note**: The relayer and special relayer parameters are deprecated and should be set to `address(0)`. They are maintained for backward compatibility but will be removed once NttManager is updated.
 
 For multiple deployments, the `deploy.sh` bash script is provided that takes a file `addresses.csv` with the required parameters and deploy on each chain. Each chain must be configured on `foundry.toml` beforehand.
 

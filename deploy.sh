@@ -11,6 +11,8 @@ SCRIPT_PATH="script/deployNttFactory.s.sol:NttFactoryDeploy"
 if [ -n "$VERSION" ]; then
     echo "Deploying new factories with version: $VERSION"
     
+    # TODO: Update CSV format once relayers are fully removed
+    # For now, reading all columns but only using coreBridge (addr1)
     while IFS=, read -r network addr1 addr2 addr3
     do
         # Skip header
@@ -18,8 +20,7 @@ if [ -n "$VERSION" ]; then
             echo "Deploying to $network"
 
             export WORMHOLE_CORE_BRIDGE=$addr1
-            export WORMHOLE_RELAYER=$addr2
-            export SPECIAL_RELAYER=$addr3
+            # Relayers are deprecated and set to address(0) in the script
             
             forge script $SCRIPT_PATH \
                 --broadcast \

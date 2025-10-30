@@ -92,7 +92,8 @@ contract NttFactoryTest is Test {
         // Deploy factory
         vm.startPrank(OWNER);
         factory = new NttFactory(OWNER, "0.0.1");
-        factory.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), wormhole.chainId());
+        // TODO: Relayers are deprecated and set to address(0)
+        factory.initializeWormholeConfig(address(wormhole), address(0), address(0), wormhole.chainId());
         factory.initializeManagerBytecode(mockManagerBytecode);
         factory.initializeTransceiverBytecode(mockTransceiverBytecode);
 
@@ -470,14 +471,15 @@ contract NttFactoryTest is Test {
 
         vm.startPrank(notDeployer);
         vm.expectRevert(abi.encodeWithSelector(INttFactory.NotDeployer.selector));
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
+        // TODO: Relayers deprecated, using address(0)
+        factory1.initializeWormholeConfig(address(wormhole), address(0), address(0), chainId);
         vm.stopPrank();
 
         // not reverted initialized successfully
         vm.startPrank(OWNER);
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
+        factory1.initializeWormholeConfig(address(wormhole), address(0), address(0), chainId);
 
         vm.expectRevert(abi.encodeWithSelector(INttFactory.WormholeConfigAlreadyInitialized.selector));
-        factory1.initializeWormholeConfig(address(wormhole), address(0x2), address(0x3), chainId);
+        factory1.initializeWormholeConfig(address(wormhole), address(0), address(0), chainId);
     }
 }

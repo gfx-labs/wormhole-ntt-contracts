@@ -98,9 +98,9 @@ interface INttFactory is IERC165 {
     /**
      * @notice Initialize wormhole addresses for a given wormhole chain
      * @param whCoreBridge Wormhole core bridge
-     * @param whRelayer Wormhole relayer
-     * @param whSpecialRelayer Womrhole special relayer
-     * @param whChainId Wormhole formatted chainId
+     * @param whRelayer Wormhole relayer (deprecated, can be address(0))
+     * @param whSpecialRelayer Wormhole special relayer (deprecated, can be address(0))
+     * @param whChainId Wormhole chain id
      */
     function initializeWormholeConfig(
         address whCoreBridge,
