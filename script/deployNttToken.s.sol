@@ -23,10 +23,7 @@ contract NttTokenDeploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         INttFactory.TokenParams memory tokenParams = INttFactory.TokenParams({
-            name: tokenName,
-            symbol: tokenSymbol,
-            existingAddress: address(0),
-            initialSupply: type(uint64).max
+            name: tokenName, symbol: tokenSymbol, existingAddress: address(0), initialSupply: type(uint64).max
         });
 
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);

@@ -101,10 +101,7 @@ contract NttFactoryTest is Test {
         MockERC20(existing_token).transferOwnership(EXISTING_TOKEN_OWNER);
 
         tokenParamsBurning = INttFactory.TokenParams({
-            name: TOKEN_NAME,
-            symbol: TOKEN_SYMBOL,
-            existingAddress: address(0),
-            initialSupply: INITIAL_SUPPLY
+            name: TOKEN_NAME, symbol: TOKEN_SYMBOL, existingAddress: address(0), initialSupply: INITIAL_SUPPLY
         });
         tokenParamsLocking = INttFactory.TokenParams({
             name: TOKEN_NAME,
@@ -122,7 +119,9 @@ contract NttFactoryTest is Test {
         // Deploy NTT system
         (address token, address nttManager, address transceiver, address ownerContract) = factory.deployNtt{
             value: factory.calculateFee(peerParams.length)
-        }(IManagerBase.Mode.BURNING, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, true);
+        }(
+            IManagerBase.Mode.BURNING, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, true
+        );
 
         // Verify token deployment
         PeerToken deployedToken = PeerToken(token);
@@ -157,7 +156,9 @@ contract NttFactoryTest is Test {
         // Deploy NTT system
         (address token, address nttManager, address transceiver, address ownerContract) = factory.deployNtt{
             value: factory.calculateFee(peerParams.length)
-        }(IManagerBase.Mode.LOCKING, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, false);
+        }(
+            IManagerBase.Mode.LOCKING, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, false
+        );
 
         // Verify token is the existing one
         assertEq(token, address(existing_token));
@@ -185,10 +186,7 @@ contract NttFactoryTest is Test {
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](1);
 
         INttFactory.TokenParams memory tokenParamsEmptyName = INttFactory.TokenParams({
-            name: "",
-            symbol: TOKEN_SYMBOL,
-            existingAddress: address(0),
-            initialSupply: INITIAL_SUPPLY
+            name: "", symbol: TOKEN_SYMBOL, existingAddress: address(0), initialSupply: INITIAL_SUPPLY
         });
 
         uint256 deploymentFee = factory.calculateFee(peerParams.length);
@@ -201,10 +199,7 @@ contract NttFactoryTest is Test {
 
         // Test empty token symbol
         INttFactory.TokenParams memory tokenParamsEmptySymbol = INttFactory.TokenParams({
-            name: TOKEN_NAME,
-            symbol: "",
-            existingAddress: address(0),
-            initialSupply: INITIAL_SUPPLY
+            name: TOKEN_NAME, symbol: "", existingAddress: address(0), initialSupply: INITIAL_SUPPLY
         });
 
         vm.expectRevert(INttFactory.InvalidTokenParameters.selector);
@@ -289,7 +284,9 @@ contract NttFactoryTest is Test {
         // Deploy twice with same parameters
         (address token1, address manager1, address transceiver1, address ownerContract) = factory.deployNtt{
             value: factory.calculateFee(peerParams.length)
-        }(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, true);
+        }(
+            mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, true
+        );
 
         assertEq(Ownable(token1).owner(), OWNER);
         assertEq(Ownable(manager1).owner(), ownerContract);
@@ -305,7 +302,9 @@ contract NttFactoryTest is Test {
         // Deploy twice with same parameters
         (address token1, address manager1, address transceiver1, address ownerContract) = factory.deployNtt{
             value: factory.calculateFee(peerParams.length)
-        }(mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, false);
+        }(
+            mode, tokenParamsLocking, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams, false
+        );
 
         assertEq(Ownable(token1).owner(), EXISTING_TOKEN_OWNER);
         assertEq(Ownable(manager1).owner(), ownerContract);
@@ -323,7 +322,9 @@ contract NttFactoryTest is Test {
         peerParams2[0] = PeersManager.PeerParams({peerChainId: 3, decimals: 8, inboundLimit: OUTBOUND_LIMIT});
         (, address manager, address transceiver, address ownerContract) = factory.deployNtt{
             value: factory.calculateFee(peerParams1.length)
-        }(mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1, true);
+        }(
+            mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1, true
+        );
 
         vm.startPrank(address(OWNER));
         Call3Value[] memory calls = new Call3Value[](peerParams2.length * 4);
@@ -387,7 +388,9 @@ contract NttFactoryTest is Test {
         PeersManager.PeerParams[] memory peerParams1 = new PeersManager.PeerParams[](1);
         peerParams1[0] = PeersManager.PeerParams({peerChainId: 2, decimals: 18, inboundLimit: OUTBOUND_LIMIT});
 
-        (, address manager,, address ownerContract) = factory.deployNtt{value: factory.calculateFee(peerParams1.length)}(
+        (, address manager,, address ownerContract) = factory.deployNtt{
+            value: factory.calculateFee(peerParams1.length)
+        }(
             mode, tokenParamsBurning, EXTERNAL_SALT, OUTBOUND_LIMIT, peerParams1, true
         );
 

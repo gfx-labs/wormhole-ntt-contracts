@@ -15,9 +15,7 @@ contract PeerToken is BaseToken, ERC20Burnable, Ownable {
     address public minter;
 
     modifier onlyMinter() {
-        if (msg.sender != minter) {
-            revert CallerNotMinter(msg.sender);
-        }
+        if (msg.sender != minter) revert CallerNotMinter(msg.sender);
         _;
     }
 
@@ -33,9 +31,7 @@ contract PeerToken is BaseToken, ERC20Burnable, Ownable {
     }
 
     function setMinter(address newMinter) external onlyOwner {
-        if (newMinter == address(0)) {
-            revert InvalidMinterZeroAddress();
-        }
+        if (newMinter == address(0)) revert InvalidMinterZeroAddress();
         minter = newMinter;
         emit NewMinter(newMinter);
     }
