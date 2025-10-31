@@ -38,6 +38,7 @@ contract NttFactory is INttFactory, PeersManager {
 
     uint16 public wormholeChainId;
     address public wormholeCoreBridge;
+    // TODO: Remove these relayer fields once NttManager is updated to not require them
     address public wormholeRelayer;
     address public specialRelayer;
 
@@ -52,9 +53,7 @@ contract NttFactory is INttFactory, PeersManager {
     address public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
-        if (msg.sender != deployer) {
-            revert NotDeployer();
-        }
+        if (msg.sender != deployer) revert NotDeployer();
         _;
     }
 
@@ -70,14 +69,13 @@ contract NttFactory is INttFactory, PeersManager {
         address whSpecialRelayer,
         uint16 whChainId
     ) external onlyDeployer {
-        if (
-            wormholeCoreBridge != address(0) || wormholeRelayer != address(0) || specialRelayer != address(0)
-                || wormholeChainId != 0
-        ) {
+        if (wormholeCoreBridge != address(0) || wormholeChainId != 0) {
             revert WormholeConfigAlreadyInitialized();
         }
 
         wormholeCoreBridge = whCoreBridge;
+        // TODO: These are deprecated and will be removed once NttManager is updated
+        // For now, accepting them but they can be zero address
         wormholeRelayer = whRelayer;
         specialRelayer = whSpecialRelayer;
         wormholeChainId = whChainId;
@@ -87,12 +85,8 @@ contract NttFactory is INttFactory, PeersManager {
 
     /// @inheritdoc INttFactory
     function initializeTransceiverBytecode(bytes calldata transceiverBytecode) external onlyDeployer {
-        if (transceiverBytecode.length == 0) {
-            revert InvalidBytecodes();
-        }
-        if (nttTransceiverBytecode != address(0)) {
-            revert TransceiverBytecodeAlreadyInitialized();
-        }
+        if (transceiverBytecode.length == 0) revert InvalidBytecodes();
+        if (nttTransceiverBytecode != address(0)) revert TransceiverBytecodeAlreadyInitialized();
 
         nttTransceiverBytecode = SSTORE2.write(transceiverBytecode);
 
@@ -101,9 +95,7 @@ contract NttFactory is INttFactory, PeersManager {
 
     /// @inheritdoc INttFactory
     function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
-        if (managerBytecode.length == 0) {
-            revert InvalidBytecodes();
-        }
+        if (managerBytecode.length == 0) revert InvalidBytecodes();
         if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0)) {
             revert ManagerBytecodeAlreadyInitialized();
         }
@@ -127,26 +119,17 @@ contract NttFactory is INttFactory, PeersManager {
             revert InvalidTokenParameters();
         }
 
-        if (
-            wormholeChainId == 0 || wormholeCoreBridge == address(0) || wormholeRelayer == address(0)
-                || specialRelayer == address(0)
-        ) {
-            revert WormholeConfigNotInitialized();
-        }
+        if (wormholeChainId == 0 || wormholeCoreBridge == address(0)) revert WormholeConfigNotInitialized();
 
         if (
             nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0)
                 || nttTransceiverBytecode == address(0)
-        ) {
-            revert BytecodesNotInitialized();
-        }
+        ) revert BytecodesNotInitialized();
         address owner = msg.sender;
         token =
             createToken ? deployToken(tokenParams.name, tokenParams.symbol, externalSalt) : tokenParams.existingAddress;
 
-        if (token == address(0)) {
-            revert InvalidTokenParameters();
-        }
+        if (token == address(0)) revert InvalidTokenParameters();
 
         // deploy manager
         DeploymentParams memory params =
@@ -222,9 +205,7 @@ contract NttFactory is INttFactory, PeersManager {
     }
 
     function configureTokenSettings(address token, address owner, uint256 initialSupply, address nttManager) internal {
-        if (initialSupply > 0) {
-            PeerToken(token).mint(owner, initialSupply);
-        }
+        if (initialSupply > 0) PeerToken(token).mint(owner, initialSupply);
 
         // move minter from factory to nttManager
         PeerToken(token).setMinter(nttManager);
@@ -270,9 +251,11 @@ contract NttFactory is INttFactory, PeersManager {
     function deployWormholeTransceiver(address nttManager) internal returns (address) {
         bytes32 implementationSalt = keccak256(abi.encodePacked(version, "TRANSCEIVER_SALT", msg.sender, address(this)));
 
+        // TODO: Update once NttManager no longer requires relayer addresses
+        // Using address(0) for relayers as they are deprecated
         bytes memory bytecode = abi.encodePacked(
             SSTORE2.read(nttTransceiverBytecode),
-            abi.encode(nttManager, wormholeCoreBridge, wormholeRelayer, specialRelayer, CONSISTENCY_LEVEL, GAS_LIMIT)
+            abi.encode(nttManager, wormholeCoreBridge, address(0), address(0), CONSISTENCY_LEVEL, GAS_LIMIT)
         );
         address implementation = Create2.deploy(0, implementationSalt, bytecode);
 

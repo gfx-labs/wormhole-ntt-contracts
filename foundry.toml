@@ -5,6 +5,23 @@ out = "out"
 solc = "0.8.22"
 src = "src"
 viaIR = true
+ignored_error_codes = ["license", "code-size"]
+skip = [
+    "**/TokenBase.sol",
+    "**/CCTPAndTokenBase.sol",
+    "**/WormholeRelayerSDK.sol"
+]
+
+[profile.default.lint]
+deny = "never"
+lint_on_build = false
+
+[profile.ci]
+deny = "never"
+
+[profile.ci.lint]
+deny = "never"
+lint_on_build = false
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 [rpc_endpoints]

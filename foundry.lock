@@ -1,0 +1,23 @@
+{
+  "lib/create3-factory": {
+    "rev": "6b834ad617902314521684e40e2f1ad73eb7ed13"
+  },
+  "lib/forge-std": {
+    "rev": "1eea5bae12ae557d589f9f0f0edae2faa47cb262"
+  },
+  "lib/native-token-transfers": {
+    "branch": {
+      "name": "v1.1.0%2Bevm",
+      "rev": "ef24f9f0065c22ec8f51775ed059501c45bbf152"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "69c8def5f222ff96f2b5beff05dfba996368aa79"
+  },
+  "lib/solady": {
+    "rev": "acd959aa4bd04720d640bf4e6a5c71037510cc4b"
+  },
+  "lib/wormhole-solidity-sdk": {
+    "rev": "b9e129e65d34827d92fceeed8c87d3ecdfc801d0"
+  }
+}
