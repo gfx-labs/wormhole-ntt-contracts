@@ -50,6 +50,7 @@ contract NttFactory is INttFactory, PeersManager {
 
     address public nttManagerBytecode1;
     address public nttManagerBytecode2;
+    address public nttManagerBytecode3;
     address public nttTransceiverBytecode;
 
     modifier onlyDeployer() {
@@ -96,12 +97,14 @@ contract NttFactory is INttFactory, PeersManager {
     /// @inheritdoc INttFactory
     function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
         if (managerBytecode.length == 0) revert InvalidBytecodes();
-        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0)) {
+        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0) || nttManagerBytecode3 != address(0)) {
             revert ManagerBytecodeAlreadyInitialized();
         }
-        uint256 mid = managerBytecode.length / 2;
-        nttManagerBytecode1 = SSTORE2.write(managerBytecode[0:mid]);
-        nttManagerBytecode2 = SSTORE2.write(managerBytecode[mid:]);
+        uint256 third = managerBytecode.length / 3;
+        uint256 twoThirds = (managerBytecode.length * 2) / 3;
+        nttManagerBytecode1 = SSTORE2.write(managerBytecode[0:third]);
+        nttManagerBytecode2 = SSTORE2.write(managerBytecode[third:twoThirds]);
+        nttManagerBytecode3 = SSTORE2.write(managerBytecode[twoThirds:]);
 
         emit ManagerBytecodeInitialized(keccak256(managerBytecode));
     }
@@ -122,7 +125,7 @@ contract NttFactory is INttFactory, PeersManager {
         if (wormholeChainId == 0 || wormholeCoreBridge == address(0)) revert WormholeConfigNotInitialized();
 
         if (
-            nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0)
+            nttManagerBytecode1 == address(0) || nttManagerBytecode2 == address(0) || nttManagerBytecode3 == address(0)
                 || nttTransceiverBytecode == address(0)
         ) revert BytecodesNotInitialized();
         address owner = msg.sender;
@@ -237,6 +240,7 @@ contract NttFactory is INttFactory, PeersManager {
         bytes memory bytecode = abi.encodePacked(
             SSTORE2.read(nttManagerBytecode1),
             SSTORE2.read(nttManagerBytecode2),
+            SSTORE2.read(nttManagerBytecode3),
             abi.encode(params.token, params.mode, wormholeChainId, RATE_LIMIT_DURATION, SHOULD_SKIP_RATE_LIMITER)
         );
 

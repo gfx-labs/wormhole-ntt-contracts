@@ -13,7 +13,7 @@ if [ -n "$VERSION" ]; then
     
     # TODO: Update CSV format once relayers are fully removed
     # For now, reading all columns but only using coreBridge (addr1)
-    while IFS=, read -r network addr1 addr2 addr3
+    while IFS=, read -r network addr1
     do
         # Skip header
         if [ "$network" != "network" ]; then

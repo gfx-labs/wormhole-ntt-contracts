@@ -5,6 +5,9 @@ out = "out"
 solc = "0.8.22"
 src = "src"
 viaIR = true
+
+evm_version = "shanghai"
+
 ignored_error_codes = ["license", "code-size"]
 skip = [
     "**/TokenBase.sol",
@@ -31,6 +34,7 @@ base_sepolia = "https://base-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
 optimism = "https://1rpc.io/op"
 optimism_sepolia = "https://opt-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
 sepolia = "https://eth-sepolia.g.alchemy.com/v2/${API_KEY_ALCHEMY}"
+sei = "https://evm-rpc.sei-apis.com"
 
 [etherscan]
 arbitrum = {key = "${ARBITRUM_ETHERSCAN_KEY}"}
@@ -39,3 +43,4 @@ base_sepolia = {key = "${BASESEPOLIA_ETHERSCAN_KEY}"}
 optimism = {key = "${OPTIMISM_ETHERSCAN_KEY}"}
 optimism_sepolia = {key = "${OPTIMISM_ETHERSCAN_KEY}"}
 sepolia = {key = "${SEPOLIA_ETHERSCAN_KEY}", chain = "sepolia"}
+sei-testnet = { chain = 1328, key="${SEI_ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api" }

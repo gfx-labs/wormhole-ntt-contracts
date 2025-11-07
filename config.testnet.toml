@@ -1,0 +1,5 @@
+[1328]
+endpoint_url = "https://evm-rpc-testnet.sei-apis.com"
+
+[1328.bool]
+is_mainnet = false
