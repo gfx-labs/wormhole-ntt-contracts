@@ -97,7 +97,8 @@ contract NttFactory is INttFactory, PeersManager {
     /// @inheritdoc INttFactory
     function initializeManagerBytecode(bytes calldata managerBytecode) external onlyDeployer {
         if (managerBytecode.length == 0) revert InvalidBytecodes();
-        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0) || nttManagerBytecode3 != address(0)) {
+        if (nttManagerBytecode1 != address(0) || nttManagerBytecode2 != address(0) || nttManagerBytecode3 != address(0))
+        {
             revert ManagerBytecodeAlreadyInitialized();
         }
         uint256 third = managerBytecode.length / 3;

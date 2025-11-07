@@ -31,7 +31,7 @@ contract NttFactoryDeploy is Script {
         console2.log("================================");
 
         vm.startBroadcast(deployerPrivateKey);
-        
+
         console2.log("Deploying NttFactory...");
         NttFactory factory = new NttFactory{salt: salt}(deployer, currentVersion);
         console2.log("Factory deployed to:", address(factory));

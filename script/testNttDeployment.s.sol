@@ -40,27 +40,22 @@ contract TestNttDeployment is Script {
             existingAddress: existingToken,
             initialSupply: 0 // Not used in LOCKING mode
         });
-        
+
         // Empty peer params for initial deployment
         PeersManager.PeerParams[] memory peerParams = new PeersManager.PeerParams[](0);
 
         // External salt to ensure unique deployment
         string memory externalSalt = string(abi.encodePacked("test-", vm.toString(block.timestamp)));
-        
+
         // Outbound limit must fit in uint64 (max ~18.4 * 10^18)
         // For a token with 18 decimals, this is reasonable
-        uint256 outboundLimit = 1000000 * 10**18; // 1M tokens
+        uint256 outboundLimit = 1000000 * 10 ** 18; // 1M tokens
 
         vm.startBroadcast(deployerPrivateKey);
 
         console2.log("Deploying NTT in LOCKING mode...");
-        
-        (
-            address token,
-            address nttManager,
-            address transceiver,
-            address proxyOwner
-        ) = factory.deployNtt{value: fee}(
+
+        (address token, address nttManager, address transceiver, address proxyOwner) = factory.deployNtt{value: fee}(
             IManagerBase.Mode.LOCKING,
             tokenParams,
             externalSalt,
