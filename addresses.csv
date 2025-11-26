@@ -1,6 +1,4 @@
-network,coreBridge,relayer,specialRelayer
-# TODO: Remove relayer and specialRelayer columns once fully deprecated
-# Relayer columns are kept for backward compatibility but are no longer used
-base_sepolia,0x79A1027a6A159502049F10906D333EC57E95F083,DEPRECATED,DEPRECATED
-optimism_sepolia,0x31377888146f3253211EFEf5c676D41ECe7D58Fe,DEPRECATED,DEPRECATED
-arbitrum_sepolia,0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35,DEPRECATED,DEPRECATED
+network,coreBridge
+base_sepolia,0x79A1027a6A159502049F10906D333EC57E95F083
+optimism_sepolia,0x31377888146f3253211EFEf5c676D41ECe7D58Fe
+arbitrum_sepolia,0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35
