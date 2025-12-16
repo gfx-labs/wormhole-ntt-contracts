@@ -79,3 +79,85 @@ If zkSync Era compatibility is required, consider:
 -   Using standard new deployments instead of Create2/CREATE3
 -   Implementing an alternative deployment strategy specific to zkSync Era
 -   Using zkSync's native factory contracts and deployment methods
+
+## Mainnet Deployments
+
+EVM Factory Address `0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1`
+EVM Transceiver Address `0x5045964706b08b8258f0e1258f30a633360e2387`
+
+- Mainnet: https://etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Optimism: https://optimistic.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Arbitrum: https://arbiscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Base: https://basescan.org/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Polygon: https://polygonscan.com/address/0x9e2b47acaf61ad2ff26b2608b9d915325c484ff1
+- Binance Smart Chain: https://bscscan.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Berachain: https://berascan.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- ~~Mantle [deprecated by WH]: https://mantlescan.xyz/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1~~
+- Unichain: https://unichain.blockscout.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Worldchain: https://worldscan.org/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Celo: https://celoscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Ink: https://explorer.inkonchain.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Scroll: https://scrollscan.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Avalanche: https://snowtrace.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- HyperEVM: https://hyperevmscan.io/address/0x9e2b47acaf61ad2ff26b2608b9d915325c484ff1#code
+
+## Testnet Deployments
+
+- Sepolia: [https://sepolia.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1](https://sepolia.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1#code)
+- Base Sepolia: https://sepolia.basescan.org/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Arbitrum Sepolia: https://sepolia.arbiscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Optimism Sepolia: https://sepolia-optimism.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Unichain Sepolia: https://unichain-sepolia.blockscout.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
+- Ink Sepolia: [https://explorer-sepolia.inkonchain.com/address/0x8C0Df866a9b3a260eF3abe4AbAC203498415e214](https://explorer-sepolia.inkonchain.com/address/0x8C0Df866a9b3a260eF3abe4AbAC203498415e214?tab=write_contract)
+
+## NTT Contract Verification Guide
+
+### Quick Start
+
+```bash
+git clone https://github.com/gfx-labs/wormhole-ntt-contracts.git
+cd wormhole-ntt-contracts
+forge install
+forge build --force --optimize --optimizer-runs 200
+```
+
+### Verify NttManager
+
+```bash
+forge verify-contract <IMPLEMENTATION_ADDRESS> \
+    lib/native-token-transfers/evm/src/NttManager/NttManager.sol:NttManager \
+    --verifier etherscan \
+    --verifier-url "https://api.etherscan.io/v2/api?chainid=<EVM_CHAIN_ID>" \
+    --etherscan-api-key <API_KEY> \
+    --watch \
+    --constructor-args $(cast abi-encode "constructor(address,uint8,uint16,uint64,bool)" \
+        <TOKEN_ADDRESS> \
+        <MODE> \
+        <WORMHOLE_CHAIN_ID> \
+        86400 \
+        false)
+```
+
+### Verify WormholeTransceiver
+
+```bash
+forge verify-contract <IMPLEMENTATION_ADDRESS> \
+    lib/native-token-transfers/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol:WormholeTransceiver \
+    --verifier etherscan \
+    --verifier-url "https://api.etherscan.io/v2/api?chainid=<EVM_CHAIN_ID>" \
+    --etherscan-api-key <API_KEY> \
+    --watch \
+    --constructor-args $(cast abi-encode "constructor(address,address,address,address,uint8,uint256)" \
+        <NTT_MANAGER_PROXY> \
+        <WORMHOLE_CORE_BRIDGE> \
+        <WORMHOLE_RELAYER> \
+        <SPECIAL_RELAYER> \
+        202 \
+        500000)
+```
+
+### Notes
+
+- `MODE`: 0 = LOCKING (source chain), 1 = BURNING (peer chain)
+- Use Wormhole chain ID, not EVM chain ID, for the constructor
+- The `--optimize --optimizer-runs 200` flag is required when building
