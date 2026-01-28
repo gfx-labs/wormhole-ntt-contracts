@@ -100,17 +100,17 @@ EVM Transceiver Address `0x5045964706b08b8258f0e1258f30a633360e2387`
 - Scroll: https://scrollscan.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
 - Avalanche: https://snowtrace.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
 - HyperEVM: https://hyperevmscan.io/address/0x9e2b47acaf61ad2ff26b2608b9d915325c484ff1#code
-- XRPL EVM: https://explorer.xrplevm.org/address/0xCf918C361446538642c233315167B498A59EeE87 (Factory: `0xCf918C361446538642c233315167B498A59EeE87`)
+- XRPL EVM: https://explorer.xrplevm.org/address/0xCf918C361446538642c233315167B498A59EeE87
 
 ## Testnet Deployments
 
-- Sepolia: [https://sepolia.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1](https://sepolia.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1#code)
+- Sepolia: https://sepolia.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
 - Base Sepolia: https://sepolia.basescan.org/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
 - Arbitrum Sepolia: https://sepolia.arbiscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
 - Optimism Sepolia: https://sepolia-optimism.etherscan.io/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
 - Unichain Sepolia: https://unichain-sepolia.blockscout.com/address/0x9e2B47ACaf61Ad2fF26B2608b9D915325c484fF1
-- Ink Sepolia: [https://explorer-sepolia.inkonchain.com/address/0x8C0Df866a9b3a260eF3abe4AbAC203498415e214](https://explorer-sepolia.inkonchain.com/address/0x8C0Df866a9b3a260eF3abe4AbAC203498415e214?tab=write_contract)
-- XRPL EVM Testnet: https://explorer.testnet.xrplevm.org/address/0xCf918C361446538642c233315167B498A59EeE87 (Factory: `0xCf918C361446538642c233315167B498A59EeE87`)
+- Ink Sepolia: https://explorer-sepolia.inkonchain.com/address/0x8C0Df866a9b3a260eF3abe4AbAC203498415e214
+- XRPL EVM Testnet: https://explorer.testnet.xrplevm.org/address/0xCf918C361446538642c233315167B498A59EeE87
 
 ## NTT Contract Verification Guide
 
